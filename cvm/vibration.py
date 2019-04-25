@@ -25,17 +25,16 @@ class ClusterVibration(object):
             pass
 
         # get minimum from a polynomial
-        poly_min = minimize_scalar(
-            UnivariateSpline(xs, ys, k=4),
-            bounds=(xs[0], xs[-1]),
-            method='bounded')
+        poly_min = minimize_scalar(UnivariateSpline(xs, ys, k=4),
+                                   bounds=(xs[0], xs[-1]),
+                                   method='bounded')
         min_x = poly_min.x  # equilibrium atomic distance
         min_y = np.float(poly_min.fun)  # ground status energy
 
         return min_x, min_y
 
     @classmethod
-    def free_energy(cls, xs, cluster, host, mass, bzc, correct=None, **kwargs):
+    def free_energy(cls, xs, cluster, host, mass, bzc, correct=None, *, noVib=False):
         """
         xs: array
             atomic distance between nearest-neighbor
@@ -57,8 +56,7 @@ class ClusterVibration(object):
         D = ret['debye_func']  # Debye function
         theta_D = ret['debye_temperature_func']  # Debye temperature function
 
-        # todo: can be used in future
-        if 'noVib' in kwargs and kwargs['noVib'] is True:
+        if noVib:
             return lambda r, T: morse(r) + min_y
 
         # construct vibration withed energy formula
@@ -93,6 +91,7 @@ class ClusterVibration(object):
     def fit_parameters(cls, xdata, ydata, M, bounds=None):
         # generate morse potential
         def __morse_gene(xs, ys, bounds):
+
             def morse_mod(r, c1, c2, lmd, r0):
                 return c1 - 2 * c2 * np.exp(-lmd * (r - r0))\
                     + c2 * np.exp(-2 * lmd * (r - r0))
@@ -126,8 +125,7 @@ class ClusterVibration(object):
         x0 = np.exp(-lmd * r0)
         B_0 = -(c2 * (lmd**3)) / (6 * np.pi * np.log(x0))
         gamma_0 = lmd * r0 / 2
-        debye_temp_0, debye_temp_func = __debye_temp_gene(
-            r0, lmd, eV2Kbar(B_0), np.float(M))
+        debye_temp_0, debye_temp_func = __debye_temp_gene(r0, lmd, eV2Kbar(B_0), np.float(M))
 
         # parameters will be used to construt
         # free energy with thermal vibration effect

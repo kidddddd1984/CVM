@@ -135,9 +135,8 @@
           9
         ],
         "no_imp_depen": false,
-        "fix_a0": 7.85,
         "host_mass": 26.982,
-        "distortion": [-0.0, 0.0],
+        "distortion": [-0.051, 0.0],
         "host_en": [
           -485.837607,
           -485.845934,
@@ -1335,7 +1334,7 @@
 
         Temperature can be setted as a single value or continuous as [highest, lowest, point, starter]
         */
-      "temp": [200, 800, 4]
+      "temp": [300, 670, 20]
     }
   ]
 }
