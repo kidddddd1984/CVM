@@ -36,17 +36,19 @@ class BaseCVM(ABC):
         Main loop
         """
 
-    def __init__(self, inp):
+    def __init__(self, inp, *, verbose=True):
         super().__init__()
         self.count = 0
+        self.verbose = verbose
         self.beta = None
         self.series = []
-        self.meta = dict(host=inp['host'].lower(),
-                         impurity=inp['impurity'].lower(),
-                         suffix=inp['suffix'].lower(),
-                         prefix=inp['prefix'].lower(),
-                         description=inp['description'],
-                         data=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        self.meta = dict(
+            host=inp['host'].lower(),
+            impurity=inp['impurity'].lower(),
+            suffix=inp['suffix'].lower(),
+            prefix=inp['prefix'].lower(),
+            description=inp['description'],
+            data=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.expt = None if 'experiment' not in inp else inp['experiment']
 
         # Boltzmann constant
@@ -98,18 +100,18 @@ class BaseCVM(ABC):
                     ],
                     **item))
 
-    def run(self, *, reset_paras=None, update_en_paras=None, process_paras=None):
+    def __call__(self, *, reset_paras={}, update_en_paras={}, process_paras={}):
         """
         Run the calculation.
         
         Parameters
         ----------
         reset_paras : dict, optional
-            The parameters will be passed to ``self.reset`` method, by default None
+            The parameters will be passed to ``self.reset`` method, by default empty.
         update_en_paras : dict, optional
-            The parameters will be passed to ``self.update_energy`` method, by default None
+            The parameters will be passed to ``self.update_energy`` method, by default empty.
         process_paras : dict, optional
-            The parameters will be passed to ``self.process`` method, by default None
+            The parameters will be passed to ``self.process`` method, by default empty.
         """
         # temperature iteration
         for sample in self.series:
@@ -124,8 +126,8 @@ class BaseCVM(ABC):
                 # reset
                 self.reset(**reset_paras)
                 while self.checker > sample.condition:
-                    e_int = sample.gene_ints(T, self.x_[1])
+                    e_int = sample.get_ints(T, self.x_[1])
                     self.update_energy(e_int, **update_en_paras)
                     self.process(**process_paras)
 
-                yield T, self.x_[1], self.count
+                yield T, self.x_[1], self.count, e_int

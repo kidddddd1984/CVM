@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-
 """
 CVM
 ===
@@ -29,7 +28,6 @@ pattern = regex.compile(r"(/\*)+.+?(\*/)", regex.S)  # remove comment in json
 
 
 class CvmCalc(object):
-
     """
     Configuration for CVM Calculation.
     ==================================

@@ -2,25 +2,15 @@
 # -*- coding:utf-8 -*-
 
 import numpy as np
-from cvm.utilities import CVM
-from numpy.matlib import zeros
+
+from ..base import BaseCVM
 
 
-class pair(CVM):
-
+class Pair(BaseCVM):
     """docstring for process"""
 
-    __slots__ = (
-        'x_',  # concentration of point, dim is 2
-        'y_',  # concentration of pair, dim is 2x2
-        'en',  # interaction energy, dim is 2x2
-        'mu'  # opposite chemical potential, dim is 2
-        'beta',  # β = 1/kt
-        'eta_sum',  # sum of η_ij
-    )
-
     def __init__(self, inp):
-        super(pair, self).__init__(inp)
+        super().__init__(inp)
         ####################
         # define var
         ####################
@@ -41,25 +31,21 @@ class pair(CVM):
 
     def __init(self):
         self.x_[0] = self.x_1
-        self.x_[1] = 1-self.x_1
+        self.x_[1] = 1 - self.x_1
 
         en[1, 1] = en[0, 1] = 0.5 * (en[0, 0] + en[1, 1] - self.int_pair)
         self.lam = np.float64(0.0)
         self.eta_sum = zeros((inp.x_.size, inp.x_.size))
-        self.en = np.matrix([[0., inp.en[0, 0]],
-                               [inp.en[0, 0], 0.]])
-        self.mu = np.matrix([[2 * inp.mu, 0],
-                                [0, -2 * inp.mu]])
+        self.en = np.matrix([[0., inp.en[0, 0]], [inp.en[0, 0], 0.]])
+        self.mu = np.matrix([[2 * inp.mu, 0], [0, -2 * inp.mu]])
         self.en = -0.5 * self.en
 
     def __eta_ij(self):
         """
         η_ij = (x_*x_j)^((2ω-1)/2ω) * exp( -βe_ij + (β/2ω)(mu_i + mu_j) )
         """
-        entro = np.power((self.x_ * self.x_.T),
-                         ((2 * self.omega - 1) / (2 * self.omega)))
-        energy = np.exp(-self.beta * self.en +
-                        (self.beta / (2 * self.omega)) * self.mu)
+        entro = np.power((self.x_ * self.x_.T), ((2 * self.omega - 1) / (2 * self.omega)))
+        energy = np.exp(-self.beta * self.en + (self.beta / (2 * self.omega)) * self.mu)
         return np.multiply(entro, energy)
 
     def __y_ij(self):

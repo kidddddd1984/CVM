@@ -8,7 +8,7 @@ import pandas as pd
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import curve_fit, minimize_scalar
 
-from .unit_convert import *
+from .utils import UnitConvert as uc
 from .vibration import ClusterVibration as cv
 
 
@@ -21,23 +21,9 @@ class Sample(object):
         super(Sample, self).__init__()
         self.bzc = bzc
         self.conv = conv
-        self._lattice_func = None
-        self._int_func = None
-
-        self._normalize = deepcopy(series['normalize'])
-        self.no_imp_depen = series['no_imp_depen']
-        self.fix_a0 = lc2ad(np.float64(series['fix_a0'])) if 'fix_a0' in series else None
-        self._host_en = np.array(series['host_en'], np.float64)
-        self.label = series['label']
-        self._latts = np.array(series['lattice_c'], np.float64)
         self.coord_num = np.array(coord_num)
-
-        # initialzed impurity Concentration
-        self.x_1 = np.float64(series['x_1'])
-
-        # convergence condition
         self.condition = np.float32(series['condition'])
-
+        self.x_1 = np.float64(series['x_1'])
         # chemical potential
         if len(series['delta_mu']) <= 1:
             self.mu = np.array(series['delta_mu'], np.float64)
@@ -45,9 +31,26 @@ class Sample(object):
             self.mu = np.linspace(series['delta_mu'][0], series['delta_mu'][1],
                                   series['delta_mu'][2])
 
+        self._lattice_func = None
+        self._int_func = None
+
+        self._normalize = deepcopy(series['normalize'])
+        self._no_imp_depen = series['no_imp_depen']
+        self._fix_r0 = uc.lc2ad(np.float64(series['fix_r0'])) if 'fix_r0' in series else None
+        self._host_en = np.array(series['host_en'], np.float64)
+        self._label = series['label']
+        self._latts = np.array(series['lattice_c'], np.float64)
+
+        # generate temperature steps
         self._temp = self._gen_temp(series['temp'])
+
+        # generate raw interaction energies
         self._raw_ints, self._pair_labels = self._gen_raw_ints(series['energies'])
+
+        # generate normalized energies
         self._normalized_ens = self._gen_normalized_ens(series['energies'])
+
+        # generate free energy functions base on debye-grüneisen model
         self._int_func = self._gen_int_func()
 
     @property
@@ -59,13 +62,15 @@ class Sample(object):
         return pd.DataFrame(data=self._raw_ints, index=self._pair_labels, columns=self._latts)
 
     def _gen_raw_ints(self, energies):
-        xs = lc2ad(self._latts)
+        xs = uc.lc2ad(self._latts)
 
         def pair_label(datas, start=1):
             label = 'pair' + str(start)
+
             while label in datas:
-                start += 1
                 yield label
+                start += 1
+                label = 'pair' + str(start)
 
         # get interaction energies
         def raw_int(data):
@@ -74,10 +79,10 @@ class Sample(object):
                 tmp += d['coefficient'] * np.array(d['energy'])
             return tmp
 
-        pair_label = [n for n in pair_label(energies)]
+        pair_labels = [n for n in pair_label(energies)]
         if 'cut_pair' in energies:
-            pair_label = pair_label[:-energies['cut_pair']]
-        return np.array([raw_int(energies[n]) for n in pair_label]), pair_label
+            pair_labels = pair_labels[:-energies['cut_pair']]
+        return np.array([raw_int(energies[n]) for n in pair_labels]), pair_labels
 
     def _gen_normalized_ens(self, energies):
         energies = deepcopy(energies)
@@ -89,11 +94,11 @@ class Sample(object):
 
         return energies
 
-    def get_r0(self, T, c):
-        if self.fix_a0 is not None:
-            return self.fix_a0
+    def get_r0(self, T, c, *, wc=True):
+        if self._fix_r0 is not None:
+            return self._fix_r0 if wc else uc.ad2lc(self._fix_r0)
 
-        xs = lc2ad(self._latts)
+        xs = uc.lc2ad(self._latts)
         host = self._host_en * self.conv
 
         def phase_en_func(*datas, num=4):
@@ -102,7 +107,7 @@ class Sample(object):
                 mass = np.array(data['mass'], np.float64)
                 yield cv.free_energy(xs, ys, host, mass, self.bzc)
 
-        def lattice_func(formulas, *, bounds=None, ratio=None, k=2):
+        def lattice_func(*formulas, bounds=None, ratio=None, k=2):
             if bounds is None:
                 bounds = (xs[0], xs[-1])
 
@@ -112,9 +117,8 @@ class Sample(object):
             def _lattice_gene(T, c):
                 _lattice_minimums = list()
                 for formula in formulas:
-                    _lattice_min = minimize_scalar(lambda r: formula(r, T),
-                                                   bounds=bounds,
-                                                   method='bounded')
+                    _lattice_min = minimize_scalar(
+                        lambda r: formula(r, T), bounds=bounds, method='bounded')
                     _lattice_minimums.append(_lattice_min.x)
 
                 _lattice_func = UnivariateSpline(ratio, _lattice_minimums[::-1], k=k)
@@ -122,42 +126,49 @@ class Sample(object):
 
             return _lattice_gene
 
+        # if None, build new one
+        # here, we have to use single-asterisk representation to change the generator to tuple
         if self._lattice_func is None:
             self._lattice_func = lattice_func(*phase_en_func(*self._normalized_ens['tetra'], num=4))
 
-        return self._lattice_func(T, c)
+        r0 = self._lattice_func(T, c)
+        return r0 if wc else uc.ad2lc(r0)
 
     def _gen_int_func(self):
-        xs = lc2ad(self._latts)
+        xs = uc.lc2ad(self._latts)
         host = self._host_en * self.conv
-        int_pair1 = cv.int_energy(xs,
-                                  self._normalized_ens['pair1'],
-                                  host,
-                                  self.bzc,
-                                  num=4,
-                                  conv=self.conv,
-                                  noVib=False)
-        int_pair2 = cv.int_energy(xs,
-                                  self._normalized_ens['pair2'],
-                                  host,
-                                  self.bzc,
-                                  num=6,
-                                  conv=self.conv,
-                                  noVib=False)
-        int_trip = cv.int_energy(xs,
-                                 self._normalized_ens['triple'],
-                                 host,
-                                 self.bzc,
-                                 num=4,
-                                 conv=self.conv,
-                                 noVib=False)
-        int_tetra = cv.int_energy(xs,
-                                  self._normalized_ens['tetra'],
-                                  host,
-                                  self.bzc,
-                                  num=4,
-                                  conv=self.conv,
-                                  noVib=False)
+        int_pair1 = cv.int_energy(
+            xs,
+            self._normalized_ens['pair1'],
+            host,
+            bzc=self.bzc,
+            num=4,
+            conv=self.conv,
+            noVib=False)
+        int_pair2 = cv.int_energy(
+            xs,
+            self._normalized_ens['pair2'],
+            host,
+            bzc=self.bzc,
+            num=6,
+            conv=self.conv,
+            noVib=False)
+        int_trip = cv.int_energy(
+            xs,
+            self._normalized_ens['triple'],
+            host,
+            bzc=self.bzc,
+            num=4,
+            conv=self.conv,
+            noVib=False)
+        int_tetra = cv.int_energy(
+            xs,
+            self._normalized_ens['tetra'],
+            host,
+            bzc=self.bzc,
+            num=4,
+            conv=self.conv,
+            noVib=False)
 
         return (int_pair1, int_pair2), int_trip, int_tetra
 
@@ -194,10 +205,10 @@ class Sample(object):
         int_trip = self._int_func[1]
         int_tetra = self._int_func[2]
 
-        pair1 = np.array(int_pair1(r0, T), np.float64)
-        pair2 = np.array(int_pair2(r0, T), np.float64)
-        trip = np.array(int_trip(r0, T), np.float64)
-        tetra = np.array(int_tetra(r0, T), np.float64)
+        pair1 = int_pair1(r0, T)
+        pair2 = int_pair2(r0, T)
+        trip = int_trip(r0, T)
+        tetra = int_tetra(r0, T)
         return (pair1, pair2), trip, tetra
 
     def _gen_normalize_diff(self):
@@ -224,7 +235,7 @@ class Sample(object):
                 start = trans[2]
             if length > 3:
                 percent = trans[3]
-            print(to, end, start, percent)
+
             # prepare range
             if start > _int_diff.shape[0] or end > _int_diff.shape[0] or start > end:
                 raise IndexError('index error')

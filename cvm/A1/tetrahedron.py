@@ -6,7 +6,7 @@ import numpy as np
 from ..base import BaseCVM
 
 
-class tetrahedron(BaseCVM):
+class Tetrahedron(BaseCVM):
     """docstring for tetrahedron"""
 
     def __init__(self, inp):
@@ -27,11 +27,16 @@ class tetrahedron(BaseCVM):
         ###############################################
         # configuration
         ###############################################
+
+        if 'dis' in kwargs:
+            dis = kwargs['dis']
+        # import pdb
+        # pdb.set_trace()
         # use transfer
 
         # pure energy of 2body 1st
         e1 = np.zeros((2, 2), np.float64)
-        e1[0, 1] = e1[1, 0] = 0.5 * (e1[0, 0] + e1[1, 1] - e_ints[0][0])
+        e1[0, 1] = e1[1, 0] = 0.5 * (e1[0, 0] + e1[1, 1] - (e_ints[0][0] + dis))
 
         # 3body-1st interaction energy
         de31 = np.zeros((2, 2, 2), np.float64)
@@ -80,8 +85,8 @@ class tetrahedron(BaseCVM):
         Y = y_ij * y_ik * y_il * y_jk * y_jl * y_kl
         """
         # exp
-        exp = np.exp(-self.beta * self.en[i, j, k, l] + (self.beta / 8) *
-                     (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]))
+        exp = np.exp(-self.beta * self.en[i, j, k, l] +
+                     (self.beta / 8) * (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]))
 
         # X
         X = self.x_[i] * self.x_[j] * self.x_[k] * self.x_[l]
@@ -125,6 +130,3 @@ class tetrahedron(BaseCVM):
             # x_
             self.x_[i] += self.t_[i, j, k, l]
             it.iternext()
-
-        # print('  chker: {:0<8.4g},   condition: {:0<8.2g},   x1: {:0<8.4g},  eta_sum:  {:0<8.4g}'
-        #       .format(self.checker, self.condition, self.x_[1], eta_sum))

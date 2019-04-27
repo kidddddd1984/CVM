@@ -2,10 +2,10 @@
 # -*- coding:utf-8 -*-
 
 import numpy as np
-from ...base import BaseCVM
+from ..base import BaseCVM
 
 
-class tetraOctahedron(BaseCVM):
+class TetraOctahedron(BaseCVM):
     """docstring for tetraOctahedron"""
 
     def __init__(self, inp):
@@ -107,9 +107,9 @@ class tetraOctahedron(BaseCVM):
         Z = z_ijk * z_ikl * z_ijl * z_jkl
         """
         # exp
-        exp = np.exp(-self.beta * self.enT[i, j, k, l] + (self.beta / 8) *
-                     (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]) + self.af_[i, j, k] +
-                     self.af_[i, j, l] + self.af_[i, k, l] + self.af_[j, k, l])
+        exp = np.exp(-self.beta * self.enT[i, j, k, l] +
+                     (self.beta / 8) * (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]) +
+                     self.af_[i, j, k] + self.af_[i, j, l] + self.af_[i, k, l] + self.af_[j, k, l])
 
         # X
         X = self.x_[i] * self.x_[j] * self.x_[k] * self.x_[l]

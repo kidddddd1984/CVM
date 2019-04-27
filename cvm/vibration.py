@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, minimize_scalar
 from scipy.interpolate import UnivariateSpline
 
-from .unit_convert import *
+from .utils import UnitConvert as uc
 
 
 class ClusterVibration(object):
@@ -20,14 +20,9 @@ class ClusterVibration(object):
             energies change for ys, impuity cluster and correct respectivly
         """
 
-        # todo: can be used in future
-        if kwagrs:
-            pass
-
         # get minimum from a polynomial
-        poly_min = minimize_scalar(UnivariateSpline(xs, ys, k=4),
-                                   bounds=(xs[0], xs[-1]),
-                                   method='bounded')
+        poly_min = minimize_scalar(
+            UnivariateSpline(xs, ys, k=4), bounds=(xs[0], xs[-1]), method='bounded')
         min_x = poly_min.x  # equilibrium atomic distance
         min_y = np.float(poly_min.fun)  # ground status energy
 
@@ -65,18 +60,16 @@ class ClusterVibration(object):
             (D(r, T) - 3 * np.log(1 - np.exp(-(theta_D(r) / T))))
 
     @classmethod
-    def int_energy(cls, xs, datas, host, bzc, **kwagrs):
+    def int_energy(cls, xs, datas, host, bzc, num, conv, *, noVib=False):
         """
         generate interaction energy
         """
-        num = kwagrs['num'] if 'num' in kwagrs else 1
-        conv = kwagrs['conv'] if 'conv' in kwagrs else 1
         parts = []
         for data in datas:
             coeff = np.int(data['coefficient'])
             mass = np.float64(data['mass'])
             ys = np.array(data['energy'], np.float64) * conv / num
-            part = cls.free_energy(xs, ys, host, mass, bzc, **kwagrs)
+            part = cls.free_energy(xs, ys, host, mass, bzc, noVib=noVib)
             parts.append((coeff, part))
 
         def __int(r, T):
@@ -125,7 +118,7 @@ class ClusterVibration(object):
         x0 = np.exp(-lmd * r0)
         B_0 = -(c2 * (lmd**3)) / (6 * np.pi * np.log(x0))
         gamma_0 = lmd * r0 / 2
-        debye_temp_0, debye_temp_func = __debye_temp_gene(r0, lmd, eV2Kbar(B_0), np.float(M))
+        debye_temp_0, debye_temp_func = __debye_temp_gene(r0, lmd, uc.eV2Kbar(B_0), np.float(M))
 
         # parameters will be used to construt
         # free energy with thermal vibration effect
@@ -136,9 +129,9 @@ class ClusterVibration(object):
             r0=r0,
             x0=x0,
             gamma_0=gamma_0,
-            equilibrium_lattice_constant=ad2lc(r0),
+            equilibrium_lattice_constant=uc.ad2lc(r0),
             morse=morse_potential,
-            bulk_moduli=eV2Kbar(B_0),
+            bulk_moduli=uc.eV2Kbar(B_0),
             debye_temperature_0=debye_temp_0,
             debye_temperature_func=debye_temp_func,
             debye_func=lambda r, T: __debye_func(debye_temp_func(r) / T),
@@ -159,7 +152,7 @@ class ClusterVibration(object):
         print("c1: {:f},  c2: {:f},  lambda: {:f}".format(c1, c2, lmd))
         print("r0: {:f},  x0: {:f}".format(r0, x0))
         print("Gruneisen constant: {:f}".format(gamma_0))
-        print("Equilibrium lattice constant: {:f} a.u.".format(ad2lc(r0)))
+        print("Equilibrium lattice constant: {:f} a.u.".format(uc.ad2lc(r0)))
         print("Bulk Modulus: {:f} Kbar".format(bulk_moduli))
         print("Debye temperature: {:f} K\n\n".format(debye_temp_0))
         print("")
