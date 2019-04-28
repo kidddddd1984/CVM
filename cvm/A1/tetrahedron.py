@@ -9,12 +9,24 @@ from ..base import BaseCVM
 class Tetrahedron(BaseCVM):
     """docstring for tetrahedron"""
 
-    def __init__(self, inp):
-        super().__init__(inp)
+    def __init__(self,
+                 meta: dict,
+                 *series,
+                 experiment=None,
+                 boltzmann_cons=8.6173303e-5,
+                 ry2eV=13.605698066,
+                 verbose=True):
+        super().__init__(
+            meta,
+            *series,
+            experiment=experiment,
+            boltzmann_cons=boltzmann_cons,
+            ry2eV=ry2eV,
+            verbose=verbose)
+
         ####################
         # define var
         ####################
-        self.multi_calcu = True if len(inp['methods']) > 1 else False
         self.x_ = np.zeros((2), np.float64)
         self.y_ = np.zeros((2, 2), np.float64)
         self.t_ = np.zeros((2, 2, 2, 2), np.float64)
@@ -28,15 +40,9 @@ class Tetrahedron(BaseCVM):
         # configuration
         ###############################################
 
-        if 'dis' in kwargs:
-            dis = kwargs['dis']
-        # import pdb
-        # pdb.set_trace()
-        # use transfer
-
         # pure energy of 2body 1st
         e1 = np.zeros((2, 2), np.float64)
-        e1[0, 1] = e1[1, 0] = 0.5 * (e1[0, 0] + e1[1, 1] - (e_ints[0][0] + dis))
+        e1[0, 1] = e1[1, 0] = 0.5 * (e1[0, 0] + e1[1, 1] - e_ints[0][0])
 
         # 3body-1st interaction energy
         de31 = np.zeros((2, 2, 2), np.float64)
@@ -76,7 +82,7 @@ class Tetrahedron(BaseCVM):
             self.y_[i, j] = self.x_[i] * self.x_[j]
             it.iternext()
 
-    def __eta_tetra(self, i, j, k, l):
+    def _eta_tetra(self, i, j, k, l):
         """
         η_ijkl = exp[-β*e_ijkl + (β/8)(mu_i + mu_j + mu_k + mu_l)]
                     * X^(-5/8)
@@ -107,7 +113,7 @@ class Tetrahedron(BaseCVM):
         it = np.nditer(t_, flags=['multi_index'])
         while not it.finished:
             i, j, k, l = it.multi_index
-            t_[i, j, k, l] = self.__eta_tetra(i, j, k, l)
+            t_[i, j, k, l] = self._eta_tetra(i, j, k, l)
             eta_sum += t_[i, j, k, l]
             it.iternext()
 

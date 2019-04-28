@@ -6,7 +6,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import curve_fit, minimize_scalar
+from scipy.optimize import minimize_scalar
 
 from .utils import UnitConvert as uc
 from .vibration import ClusterVibration as cv
@@ -17,22 +17,24 @@ class Sample(object):
     Sample is a object which store a group of configuration data for calculation
     """
 
-    def __init__(self, bzc, conv, coord_num, **series):
-        super(Sample, self).__init__()
-        self.bzc = bzc
-        self.conv = conv
+    def __init__(self,
+                 coord_num,
+                 boltzmann_cons=8.6173303e-5,
+                 ry2eV=13.605698066,
+                 *,
+                 patch=None,
+                 **series):
+        super().__init__()
+        self.bzc = boltzmann_cons
+        self.conv = ry2eV
         self.coord_num = np.array(coord_num)
         self.condition = np.float32(series['condition'])
         self.x_1 = np.float64(series['x_1'])
         # chemical potential
-        if len(series['delta_mu']) <= 1:
-            self.mu = np.array(series['delta_mu'], np.float64)
-        else:
-            self.mu = np.linspace(series['delta_mu'][0], series['delta_mu'][1],
-                                  series['delta_mu'][2])
 
         self._lattice_func = None
         self._int_func = None
+        self._patch = patch
 
         self._normalize = deepcopy(series['normalize'])
         self._no_imp_depen = series['no_imp_depen']
@@ -58,7 +60,12 @@ class Sample(object):
         return self._host_en.copy()
 
     @property
-    def raw_ints(self):
+    def raw_ints_ev(self):
+        return pd.DataFrame(
+            data=self.conv * self._raw_ints, index=self._pair_labels, columns=self._latts)
+
+    @property
+    def raw_ints_ry(self):
         return pd.DataFrame(data=self._raw_ints, index=self._pair_labels, columns=self._latts)
 
     def _gen_raw_ints(self, energies):
@@ -122,7 +129,7 @@ class Sample(object):
                     _lattice_minimums.append(_lattice_min.x)
 
                 _lattice_func = UnivariateSpline(ratio, _lattice_minimums[::-1], k=k)
-                return _lattice_func(0.0) if self.no_imp_depen else _lattice_func(c)
+                return _lattice_func(0.0) if self._no_imp_depen else _lattice_func(c)
 
             return _lattice_gene
 
@@ -186,7 +193,7 @@ class Sample(object):
     def temperature(self):
         return self._temp.copy()
 
-    def get_ints(self, T, c):
+    def __call__(self, T, c):
         """Get interaction energies at concentration c.
         
         Parameters
@@ -199,6 +206,7 @@ class Sample(object):
         tuple
             Named tuple contains calculated interaction energies.
         """
+
         r0 = self.get_r0(T, c)
         int_pair1 = self._int_func[0][0]
         int_pair2 = self._int_func[0][1]
@@ -209,7 +217,10 @@ class Sample(object):
         pair2 = int_pair2(r0, T)
         trip = int_trip(r0, T)
         tetra = int_tetra(r0, T)
-        return (pair1, pair2), trip, tetra
+        if self._patch is None:
+            return (pair1, pair2), trip, tetra
+        tmp = self._patch(uc.ad2lc(r0))
+        return (pair1 + tmp[0][0], pair2 + tmp[0][1]), trip + tmp[1], tetra + tmp[2]
 
     def _gen_normalize_diff(self):
         """

@@ -8,12 +8,24 @@ from ..base import BaseCVM
 class TetraOctahedron(BaseCVM):
     """docstring for tetraOctahedron"""
 
-    def __init__(self, inp):
-        super().__init__(inp)
+    def __init__(self,
+                 meta: dict,
+                 *series,
+                 experiment=None,
+                 boltzmann_cons=8.6173303e-5,
+                 ry2eV=13.605698066,
+                 verbose=True):
+        super().__init__(
+            meta,
+            *series,
+            experiment=experiment,
+            boltzmann_cons=boltzmann_cons,
+            ry2eV=ry2eV,
+            verbose=verbose)
+
         ####################
         # define var
         ####################
-        self.multi_calcu = True if len(inp['methods']) > 1 else False
         self.x_ = np.zeros((2), np.float64)
         self.y_ = np.zeros((2, 2), np.float64)
         self.z_ = np.zeros((2, 2, 2), np.float64)
@@ -124,7 +136,7 @@ class TetraOctahedron(BaseCVM):
 
         return exp * np.power(X, 1 / 8) * np.power(Y, -1 / 2) * Z
 
-    def __eta_octa(self, i, j, k, l, m, n):
+    def _eta_octa(self, i, j, k, l, m, n):
         """
         η_ijklmn = exp[-β*e_ijklmn -
                         (af_ijm + af_ijn + af_jkm + af_jkn +
@@ -158,7 +170,7 @@ class TetraOctahedron(BaseCVM):
         it = np.nditer(wo_, flags=['multi_index'])
         while not it.finished:
             i, j, k, l, m, n = it.multi_index
-            wo_[i, j, k, l, m, n] = self.__eta_octa(i, j, k, l, m, n)
+            wo_[i, j, k, l, m, n] = self._eta_octa(i, j, k, l, m, n)
             self.zo_[i, j, m] += wo_[i, j, k, l, m, n]
             it.iternext()
 

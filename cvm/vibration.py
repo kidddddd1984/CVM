@@ -91,7 +91,7 @@ class ClusterVibration(object):
 
             # morse parameters
             if not bounds:
-                bounds = ([3, 3, 1, xs[0]], [8.5, 8.5, 2, xs[-1]])
+                bounds = ([0, 0, 0, xs[0]], [10, 10, 2, xs[-1]])
             popt, _ = curve_fit(morse_mod, xs, ys, bounds=bounds)
 
             return popt[0], popt[1], popt[2], popt[3],\

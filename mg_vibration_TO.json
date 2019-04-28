@@ -1,38 +1,33 @@
 {
-  /*
-    Host and impurity element.
-    */
-  "host": "Al",
-  "impurity": "Mg",
+  "meta": {
+    /*
+      Host and impurity element.
+      */
+    "host": "Al",
+    "impurity": "Mg",
 
-  /*
-    Meta prefix(optional).
-    */
-  "prefix": "",
+    /*
+      Meta prefix(optional).
+      */
+    "prefix": "",
 
-  /*
-    Meta suffix(optional).
-    */
-  "suffix": "vib_TO",
+    /*
+      Meta suffix(optional).
+      */
+    "suffix": "vib_TO",
 
-  /*
-    descripton your calculation. it's optional
-    */
-  "description": "PdRu solubility limit calculation with tetrahedron approximation",
+    /*
+      descripton your calculation. it's optional
+      */
+    "description": "PdRu solubility limit calculation with tetrahedron approximation",
 
-  /*
-    Crystal structure
+    /*
+      Crystal structure
 
-    Please use Strukturbericht symbol method. For example: Cu => A1; W => A2
-    */
-  "structure": "A1",
-
-  /*
-    Cluster
-
-    Which sit will be chosen to export entropy term. Assume cube length as 1.
-    */
-  "cluster": [[0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.5, 0.5], [0.5, 0.0, 0.5]],
+      Please use Strukturbericht symbol method. For example: Cu => A1; W => A2
+      */
+    "structure": "A1"
+  },
 
   /*
     Experiment
@@ -95,12 +90,12 @@
         this is array with 4 elements means [to, end, start. percent]
         eg: tansfer all to 1st from 2nd to 8th will be written as [1,8,2]
         */
-      "normalize": [[1, 11, 3]],
+      "normalize": [[1, 11, 2]],
       /*
         elements concentration
         must be normalized
         */
-      "x_1": 0.05,
+      "x_1": 0.01,
 
       /*
         Convergence condition
@@ -109,7 +104,6 @@
 
       "lattice_c": [7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9],
       "no_imp_depen": false,
-      "fix_r0": 7.85,
       "host_mass": 26.982,
       "distortion": [-0.0, -0.0],
       "host_en": [
@@ -1302,18 +1296,11 @@
       },
 
       /*
-        Chemical potential
-
-        Chemical potential can be setted as a single value or continuous as [highest, lowest, point]
-        */
-      "delta_mu": [0.0],
-
-      /*
         Temperature (K)
 
         Temperature can be setted as a single value or continuous as [highest, lowest, point, starter]
         */
-      "temp": [200, 600, 6]
+      "temp": [300, 650, 10]
     }
   ]
 }
