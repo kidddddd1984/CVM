@@ -1,7 +1,10 @@
+from collections import Iterable
+
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit, minimize_scalar
+import pandas as pd
+from scipy.integrate import quad
 from scipy.interpolate import UnivariateSpline
+from scipy.optimize import curve_fit, minimize_scalar
 
 from .utils import UnitConvert as uc
 
@@ -11,25 +14,111 @@ class ClusterVibration(object):
     Tools class for cluster vibration
     """
 
-    @classmethod
-    def minimum(cls, xs, ys, **kwagrs):
-        """
-        xs: array
-            atomic distance between nearest-neighbor
-        ys: array
-            energies change for ys, impuity cluster and correct respectivly
-        """
+    def __init__(self, xs, ys, mass, *, energy_shift=None, vibration=True, morse_paras_bounds=None):
+        assert len(xs) == len(ys), 'xs and ys must have same dim'
+        self._xs = self._check_input(xs)
+        self._ys = self._check_input(ys)
+        self.vibration = vibration
+        self._mass = mass
 
-        # get minimum from a polynomial
-        poly_min = minimize_scalar(
-            UnivariateSpline(xs, ys, k=4), bounds=(xs[0], xs[-1]), method='bounded')
-        min_x = poly_min.x  # equilibrium atomic distance
+        # parameter bounds for fitting
+        # order: c1, c2, lmd, r0
+        # bounds: ([low, low, low, low], [high, high, high, high])
+        # doc: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
+        if morse_paras_bounds is not None:
+            self._morse_paras_bounds = morse_paras_bounds
+        else:
+            self._morse_paras_bounds = ([0, 0, 0, xs[0]], [10, 10, 2, xs[-1]])
+
+        # energy shift
+        if energy_shift is not None:
+            if isinstance(energy_shift, Iterable):
+                assert len(energy_shift) == len(ys), 'energy_shift must have same dim with ys'
+                self._ys += np.array(energy_shift)
+            else:
+                self._ys += np.full_like(ys, energy_shift)
+        self._shift = self._get_shift()
+        self._ys -= self._shift
+
+        # fit parameters
+        self._paras = self._fit_paras()
+
+        # calculate equilibrium constant
+        poly_min = minimize_scalar(lambda _r: self.morse_potential(_r) + self._shift,
+                                   bounds=(self._xs[0], self._xs[-1]),
+                                   method='bounded')
+        self._lattic_cons = uc.ad2lc(poly_min.x)
+        self._ground_en = poly_min.fun
+
+    def _get_shift(self):
+        poly_min = minimize_scalar(UnivariateSpline(self._xs, self._ys, k=4),
+                                   bounds=(self._xs[0], self._xs[-1]),
+                                   method='bounded')
+        # min_x = poly_min.x  # equilibrium atomic distance
         min_y = np.float(poly_min.fun)  # ground status energy
 
-        return min_x, min_y
+        return min_y
 
-    @classmethod
-    def free_energy(cls, xs, cluster, host, mass, bzc, correct=None, *, noVib=False):
+    def _check_input(self, array):
+        if isinstance(array, list):
+            return np.array(array, dtype=np.float64)
+        if isinstance(array, pd.Series):
+            return array.values
+        if isinstance(array, np.ndarray):
+            return array
+        raise TypeError('input must be a array with shape (n,)')
+
+    @property
+    def c1(self):
+        return self._paras['c1']
+
+    @property
+    def c2(self):
+        return self._paras['c2']
+
+    @property
+    def lmd(self):
+        return self._paras['lmd']
+
+    @property
+    def r_0(self):
+        return self._paras['r_0']
+
+    @property
+    def equilibrium_lattice_cons(self):
+        return self._lattic_cons
+
+    @property
+    def x_0(self):
+        return self._paras['x_0']
+
+    @property
+    def gamma_0(self):
+        return self._paras['gamma_0']
+
+    @property
+    def bulk_modulus(self):
+        return self._paras['B_0']
+
+    def morse_potential(self, r):
+        return self.c1 - 2 * self.c2 * np.exp(-self.lmd * (r - self.r_0)) + \
+            self.c2 * np.exp(-2 * self.lmd * (r - self.r_0))
+
+    def debye_temperature(self, r=None):
+        D_0 = np.float64(41.63516) * np.power(self.r_0 * self.bulk_modulus / self._mass, 1 / 2)
+        if r is None:
+            return D_0
+        return D_0 * np.power(self.r_0 / r, 3 * self.lmd * r / 2)
+
+    # debye function
+    # default n=3
+    def debye_function(self, T, r=None, *, n=3):
+        x = self.debye_temperature(r) / T
+
+        ret, _ = quad(lambda t: t**n / (np.exp(t) - 1), 0, x)
+        return (n / x**n) * ret
+
+    def __call__(self, T, r=None, *, min_x=False):
         """
         xs: array
             atomic distance between nearest-neighbor
@@ -41,84 +130,46 @@ class ClusterVibration(object):
             atomic mass
         """
 
-        # perpare energies and get polynomial minimum for morse fit
-        ys = cluster + host if not correct else cluster + host - correct
-        _, min_y = cls.minimum(xs, ys)
+        bzc = 8.6173303e-5
 
-        # use polynomial minimum to obtain morse parameters
-        ret = cls.fit_parameters(xs, ys - min_y, mass)
-        morse = ret['morse']  # Morse potential based on 0 minimum
-        D = ret['debye_func']  # Debye function
-        theta_D = ret['debye_temperature_func']  # Debye temperature function
+        if r is not None:
+            if not self.vibration:
+                return self.morse_potential(r) + self._shift
 
-        if noVib:
-            return lambda r, T: morse(r) + min_y
+            # construct vibration withed energy formula
+            return self.morse_potential(r) + self._shift + \
+                (9 / 8) * bzc * self.debye_temperature(r) - \
+                bzc * T * (self.debye_function(T, r) - \
+                3 * np.log(1 - np.exp(-(self.debye_temperature(r) / T))))
 
-        # construct vibration withed energy formula
-        return lambda r, T: morse(r) + min_y + (9 / 8) * bzc * theta_D(r)\
-            - bzc * T * \
-            (D(r, T) - 3 * np.log(1 - np.exp(-(theta_D(r) / T))))
+        if not self.vibration:
+            if min_x:
+                return self._ground_en, self._lattic_cons
+            return self._ground_en
 
-    @classmethod
-    def int_energy(cls, xs, datas, host, bzc, num, conv, *, noVib=False):
-        """
-        generate interaction energy
-        """
-        parts = []
-        for data in datas:
-            coeff = np.int(data['coefficient'])
-            mass = np.float64(data['mass'])
-            ys = np.array(data['energy'], np.float64) * conv / num
-            part = cls.free_energy(xs, ys, host, mass, bzc, noVib=noVib)
-            parts.append((coeff, part))
+        tmp_func = lambda _r: self.morse_potential(_r) + self._shift + \
+                (9 / 8) * bzc * self.debye_temperature(_r) - \
+                bzc * T * (self.debye_function(T, _r) - \
+                3 * np.log(1 - np.exp(-(self.debye_temperature(_r) / T))))
+        poly_min = minimize_scalar(tmp_func, bounds=(self._xs[0], self._xs[-1]), method='bounded')
 
-        def __int(r, T):
-            int_en = np.float64(0)
-            for part in parts:
-                int_en += part[0] * part[1](r, T)
-            return int_en * num
+        if min_x:
+            return poly_min.fun, uc.ad2lc(poly_min.x)
+        return poly_min.fun
 
-        return __int
+    def _fit_paras(self):
+        # morse potential
+        def morse_pot(r, c1, c2, lmd, r0):
+            return c1 - 2 * c2 * np.exp(-lmd * (r - r0))\
+                + c2 * np.exp(-2 * lmd * (r - r0))
 
-    @classmethod
-    def fit_parameters(cls, xdata, ydata, M, bounds=None):
-        # generate morse potential
-        def __morse_gene(xs, ys, bounds):
-
-            def morse_mod(r, c1, c2, lmd, r0):
-                return c1 - 2 * c2 * np.exp(-lmd * (r - r0))\
-                    + c2 * np.exp(-2 * lmd * (r - r0))
-
-            # morse parameters
-            if not bounds:
-                bounds = ([0, 0, 0, xs[0]], [10, 10, 2, xs[-1]])
-            popt, _ = curve_fit(morse_mod, xs, ys, bounds=bounds)
-
-            return popt[0], popt[1], popt[2], popt[3],\
-                lambda r: morse_mod(r, popt[0], popt[1], popt[2], popt[3])
-
-        # debye function
-        # default n=3
-        def __debye_func(x, n=3):
-            try:
-                from scipy.integrate import quad
-            except Exception as e:
-                raise e
-
-            ret, _ = quad(lambda t: t**n / (np.exp(t) - 1), 0, x)
-            return (n / x**n) * ret
-
-        # generate debye temperature Θ_D
-        def __debye_temp_gene(r0, lmd, B, M):  # (ΘD)0 r=r0
-            D_0 = np.float64(41.63516) * np.power(r0 * B / M, 1 / 2)
-            return D_0, lambda r: D_0 * np.power(r0 / r, 3 * lmd * r / 2)
-
-        c1, c2, lmd, r0, morse_potential = __morse_gene(xdata, ydata, bounds)
+        # morse parameters
+        popt, _ = curve_fit(morse_pot, self._xs, self._ys, bounds=self._morse_paras_bounds)
+        c1, c2, lmd, r0 = popt[0], popt[1], popt[2], popt[3]
 
         x0 = np.exp(-lmd * r0)
-        B_0 = -(c2 * (lmd**3)) / (6 * np.pi * np.log(x0))
+        B0 = uc.eV2Kbar(-(c2 * (lmd**3)) / (6 * np.pi * np.log(x0)))
         gamma_0 = lmd * r0 / 2
-        debye_temp_0, debye_temp_func = __debye_temp_gene(r0, lmd, uc.eV2Kbar(B_0), np.float(M))
 
         # parameters will be used to construt
         # free energy with thermal vibration effect
@@ -126,33 +177,19 @@ class ClusterVibration(object):
             c1=c1,
             c2=c2,
             lmd=lmd,
-            r0=r0,
-            x0=x0,
+            r_0=r0,
+            x_0=x0,
             gamma_0=gamma_0,
-            equilibrium_lattice_constant=uc.ad2lc(r0),
-            morse=morse_potential,
-            bulk_moduli=uc.eV2Kbar(B_0),
-            debye_temperature_0=debye_temp_0,
-            debye_temperature_func=debye_temp_func,
-            debye_func=lambda r, T: __debye_func(debye_temp_func(r) / T),
-            debye_func_0=lambda T: __debye_func(debye_temp_0 / T),
+            B_0=B0,
         )
 
-    @classmethod
-    def show_parameter(cls, ret):
-        c1 = ret['c1']
-        c2 = ret['c2']
-        lmd = ret['lmd']
-        r0 = ret['r0']
-        x0 = ret['x0']
-        gamma_0 = ret['gamma_0']
-        bulk_moduli = ret['bulk_moduli']
-        debye_temp_0 = ret['debye_temperature_0']
+    def __repr__(self):
 
-        print("c1: {:f},  c2: {:f},  lambda: {:f}".format(c1, c2, lmd))
-        print("r0: {:f},  x0: {:f}".format(r0, x0))
-        print("Gruneisen constant: {:f}".format(gamma_0))
-        print("Equilibrium lattice constant: {:f} a.u.".format(uc.ad2lc(r0)))
-        print("Bulk Modulus: {:f} Kbar".format(bulk_moduli))
-        print("Debye temperature: {:f} K\n\n".format(debye_temp_0))
-        print("")
+        return '\n'.join([
+            'c1: {:f},  c2: {:f},  lambda: {:f}'.format(self.c1, self.c2, self.lmd), \
+            'r0: {:f},  x0: {:f}'.format(self.r_0, self.x_0), \
+            'Gruneisen constant: {:f}'.format(self.gamma_0), \
+            'Equilibrium lattice constant: {:f} a.u.'.format(self.equilibrium_lattice_cons), \
+            'Bulk Modulus: {:f} Kbar'.format(self.bulk_modulus), \
+            'Debye temperature: {:f} K'.format(self.debye_temperature())
+        ])

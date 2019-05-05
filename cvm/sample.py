@@ -17,13 +17,15 @@ class Sample(object):
     Sample is a object which store a group of configuration data for calculation
     """
 
-    def __init__(self,
-                 coord_num,
-                 boltzmann_cons=8.6173303e-5,
-                 ry2eV=13.605698066,
-                 *,
-                 patch=None,
-                 **series):
+    def __init__(
+            self,
+            series: dict,
+            coord_num: list,
+            *,
+            boltzmann_cons=8.6173303e-5,
+            ry2eV=13.605698066,
+            patch=None,
+    ):
         super().__init__()
         self.bzc = boltzmann_cons
         self.conv = ry2eV
@@ -61,8 +63,9 @@ class Sample(object):
 
     @property
     def raw_ints_ev(self):
-        return pd.DataFrame(
-            data=self.conv * self._raw_ints, index=self._pair_labels, columns=self._latts)
+        return pd.DataFrame(data=self.conv * self._raw_ints,
+                            index=self._pair_labels,
+                            columns=self._latts)
 
     @property
     def raw_ints_ry(self):
@@ -124,8 +127,9 @@ class Sample(object):
             def _lattice_gene(T, c):
                 _lattice_minimums = list()
                 for formula in formulas:
-                    _lattice_min = minimize_scalar(
-                        lambda r: formula(r, T), bounds=bounds, method='bounded')
+                    _lattice_min = minimize_scalar(lambda r: formula(r, T),
+                                                   bounds=bounds,
+                                                   method='bounded')
                     _lattice_minimums.append(_lattice_min.x)
 
                 _lattice_func = UnivariateSpline(ratio, _lattice_minimums[::-1], k=k)
@@ -144,38 +148,34 @@ class Sample(object):
     def _gen_int_func(self):
         xs = uc.lc2ad(self._latts)
         host = self._host_en * self.conv
-        int_pair1 = cv.int_energy(
-            xs,
-            self._normalized_ens['pair1'],
-            host,
-            bzc=self.bzc,
-            num=4,
-            conv=self.conv,
-            noVib=False)
-        int_pair2 = cv.int_energy(
-            xs,
-            self._normalized_ens['pair2'],
-            host,
-            bzc=self.bzc,
-            num=6,
-            conv=self.conv,
-            noVib=False)
-        int_trip = cv.int_energy(
-            xs,
-            self._normalized_ens['triple'],
-            host,
-            bzc=self.bzc,
-            num=4,
-            conv=self.conv,
-            noVib=False)
-        int_tetra = cv.int_energy(
-            xs,
-            self._normalized_ens['tetra'],
-            host,
-            bzc=self.bzc,
-            num=4,
-            conv=self.conv,
-            noVib=False)
+        int_pair1 = cv.int_energy(xs,
+                                  self._normalized_ens['pair1'],
+                                  host,
+                                  bzc=self.bzc,
+                                  num=4,
+                                  conv=self.conv,
+                                  noVib=False)
+        int_pair2 = cv.int_energy(xs,
+                                  self._normalized_ens['pair2'],
+                                  host,
+                                  bzc=self.bzc,
+                                  num=6,
+                                  conv=self.conv,
+                                  noVib=False)
+        int_trip = cv.int_energy(xs,
+                                 self._normalized_ens['triple'],
+                                 host,
+                                 bzc=self.bzc,
+                                 num=4,
+                                 conv=self.conv,
+                                 noVib=False)
+        int_tetra = cv.int_energy(xs,
+                                  self._normalized_ens['tetra'],
+                                  host,
+                                  bzc=self.bzc,
+                                  num=4,
+                                  conv=self.conv,
+                                  noVib=False)
 
         return (int_pair1, int_pair2), int_trip, int_tetra
 
@@ -261,3 +261,24 @@ class Sample(object):
                         index] * percent / self.coord_num[to - 1]
 
         return _int_diff
+
+    @classmethod
+    def int_energy(cls, xs, datas, host, bzc, num, conv, *, noVib=False):
+        """
+        generate interaction energy
+        """
+        parts = []
+        for data in datas:
+            coeff = np.int(data['coefficient'])
+            mass = np.float64(data['mass'])
+            ys = np.array(data['energy'], np.float64) * conv / num
+            part = cls.free_energy(xs, ys, host, mass, bzc, noVib=noVib)
+            parts.append((coeff, part))
+
+        def __int(r, T):
+            int_en = np.float64(0)
+            for part in parts:
+                int_en += part[0] * part[1](r, T)
+            return int_en * num
+
+        return __int

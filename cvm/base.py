@@ -46,6 +46,7 @@ class BaseCVM(ABC):
                  verbose=True):
         super().__init__()
         self.count = 0
+        self.checker = np.float64(0)
         self.verbose = verbose
         self._samples = []
         self.beta = None
@@ -85,6 +86,7 @@ class BaseCVM(ABC):
     def _build_sample(self, series):
         self._samples.append(
             Sample(
+                series,
                 [
                     12,
                     6,
@@ -112,9 +114,8 @@ class BaseCVM(ABC):
                     24,
                     48  # 20th
                 ],
-                self.bzc,
-                self.conv,
-                **series))
+                boltzmann_cons=self.bzc,
+                ry2eV=self.conv))
 
     @classmethod
     def from_samples(cls,
@@ -124,12 +125,11 @@ class BaseCVM(ABC):
                      boltzmann_cons=8.6173303e-5,
                      ry2eV=13.605698066,
                      verbose=True):
-        ret = cls(
-            meta,
-            experiment=experiment,
-            boltzmann_cons=boltzmann_cons,
-            ry2eV=ry2eV,
-            verbose=verbose)
+        ret = cls(meta,
+                  experiment=experiment,
+                  boltzmann_cons=boltzmann_cons,
+                  ry2eV=ry2eV,
+                  verbose=verbose)
 
         for s in samples:
             ret.add_sample(s)

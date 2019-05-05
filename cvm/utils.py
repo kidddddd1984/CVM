@@ -25,7 +25,7 @@ class UnitConvert:
     def ad2lc(d, n=4):
         return d / np.power((3 / (4 * n * np.pi)), 1 / 3)
 
-    # a.u. press to Kbar
+    # eV. press to Kbar
     @staticmethod
     def eV2Kbar(p):
         return p * 2.9421912e13 * 1e-8 / 27.21138505
@@ -34,6 +34,11 @@ class UnitConvert:
     @staticmethod
     def au2K(t):
         return t * 3.1577464e5
+
+    # a.u. temperature to K
+    @staticmethod
+    def ry2eV(t):
+        return t * 13.605698066
 
 
 def get_inp(path):
