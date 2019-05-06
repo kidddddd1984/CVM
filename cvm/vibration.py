@@ -147,11 +147,9 @@ class ClusterVibration(object):
                 return self._ground_en, self._lattic_cons
             return self._ground_en
 
-        tmp_func = lambda _r: self.morse_potential(_r) + self._shift + \
-                (9 / 8) * bzc * self.debye_temperature(_r) - \
-                bzc * T * (self.debye_function(T, _r) - \
-                3 * np.log(1 - np.exp(-(self.debye_temperature(_r) / T))))
-        poly_min = minimize_scalar(tmp_func, bounds=(self._xs[0], self._xs[-1]), method='bounded')
+        poly_min = minimize_scalar(lambda _r: self(T, _r),
+                                   bounds=(self._xs[0], self._xs[-1]),
+                                   method='bounded')
 
         if min_x:
             return poly_min.fun, uc.ad2lc(poly_min.x)

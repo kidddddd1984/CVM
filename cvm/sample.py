@@ -99,8 +99,9 @@ class Sample(object):
         int_diffs = self._gen_normalize_diff()
 
         # 1st total energy
-        energies['pair1'][0]['energy'] = np.array(energies['pair1'][0]['energy']) + int_diffs[0]
-        energies['pair2'][0]['energy'] = np.array(energies['pair2'][0]['energy']) + int_diffs[1]
+        for i, l in enumerate(self._pair_labels):
+            energies[l][0]['energy'] = np.array(energies[l][0]['energy']) + int_diffs[i]
+        # energies['pair2'][0]['energy'] = np.array(energies['pair2'][0]['energy']) + int_diffs[1]
 
         return energies
 
