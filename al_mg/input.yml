@@ -1,0 +1,67 @@
+# meta information
+# these information only for human reading will never be used for calculation
+# the followings is an example
+meta:
+  host: Al
+  impurity: Mg
+  prefix: ''
+  suffix: vib_TO
+  description: PdRu solubility limit calculation with tetrahedron approximation
+  structure: A1
+
+# experiment data
+# This is an optional block
+# These data will only be used for plotting
+experiment:
+  temp:
+    [
+      715.15,
+      706.15,
+      696.15,
+      682.95,
+      672.15,
+      659.15,
+      642.65,
+      628.15,
+      611.65,
+      591.65,
+      572.15,
+      551.15,
+      523.15,
+      497.15,
+      461.15,
+      414.15,
+      372.15,
+    ]
+  c: [0.17, 0.16, 0.15, 0.14, 0.13, 0.12, 0.11, 0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01]
+
+# series is a list contains sets of raw data and parameters for CVM calculations
+series:
+  - skip: false
+    label: $T_\mathrm{FD}=800$K
+    temp: [300, 650, 10]
+    x_1: 0.01
+    condition: 1e-07
+    host: host
+    lattice: lattice
+    energies: energies.csv # raw energies
+    normalize:
+      targets:
+        Al2Mg2: [1, 11, 2]
+      int:
+        - { 1_II: 1, 1_IH: -2, 1_HH: 1 }
+        - { 2_II: 1, 2_IH: -2, 2_HH: 1 }
+        - { 3_II: 1, 3_IH: -2, 3_HH: 1 }
+        - { 4_II: 1, 4_IH: -2, 4_HH: 1 }
+        - { 5_II: 1, 5_IH: -2, 5_HH: 1 }
+        - { 6_II: 1, 6_IH: -2, 6_HH: 1 }
+        - { 7_II: 1, 7_IH: -2, 7_HH: 1 }
+        - { 8_II: 1, 8_IH: -2, 8_HH: 1 }
+        - { 9_II: 1, 9_IH: -2, 9_HH: 1 }
+        - { 10_II: 1, 10_IH: -2, 10_HH: 1 }
+        - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
+
+    clusters:
+      2nd: { Al4Mg2: 1, Al5Mg1: -2, Al6: 1 }
+      triple: { Al1Mg3: 1, Al2Mg2: -3, Al3Mg1: 3, Al4: -1 }
+      tetra: { Mg4: 1, Al1Mg3: -4, Al2Mg2: 6, Al3Mg1: -4, Al4: 1 }
