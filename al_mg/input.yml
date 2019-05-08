@@ -37,18 +37,48 @@ experiment:
 
 # series is a list contains sets of raw data and parameters for CVM calculations
 series:
-  - skip: false
+  - energies: energies.csv # raw energies
     label: $T_\mathrm{FD}=800$K
     temp: [300, 650, 10]
-    x_1: 0.01
-    condition: 1e-07
-    host: host
-    lattice: lattice
-    energies: energies.csv # raw energies
+
+    skip: false # optional, by default true
+    x_1: 0.01 # optional, by default x_1 = 0.001
+    condition: 1e-07 # optional, by default condition = 1e-07
+    host: host # optional, by default host = host
+    lattice: lattice # optional, by default lattice = lattice
+
     normalize:
       targets:
-        Al2Mg2: [1, 11, 2]
-      int:
+        Al2Mg2:
+          step: [1, 11, 2]
+          ratios: [
+              12,
+              6,
+              24,
+              12,
+              24,
+              8,
+              48,
+              6,
+              12, # 9th-a
+              24, # 9th-b
+              4,
+              24,
+              24,
+              48, # 13th-a
+              24, # 13th-b
+              48,
+              12,
+              24, # 16th-a
+              24, # 16th-b
+              24, # 17th-a
+              6, # 17th-b
+              48, # 18th-a
+              24, # 18th-b
+              24,
+              48, # 20th
+            ]
+      int: # set how to calculate interaction energy for each one
         - { 1_II: 1, 1_IH: -2, 1_HH: 1 }
         - { 2_II: 1, 2_IH: -2, 2_HH: 1 }
         - { 3_II: 1, 3_IH: -2, 3_HH: 1 }
@@ -62,6 +92,7 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters:
+      1st: { Al2Mg2: 1, Al3Mg1: -2, Al4: 1 }
       2nd: { Al4Mg2: 1, Al5Mg1: -2, Al6: 1 }
       triple: { Al1Mg3: 1, Al2Mg2: -3, Al3Mg1: 3, Al4: -1 }
       tetra: { Mg4: 1, Al1Mg3: -4, Al2Mg2: 6, Al3Mg1: -4, Al4: 1 }
