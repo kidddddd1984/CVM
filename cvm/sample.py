@@ -113,7 +113,7 @@ class Sample(object):
 
     @clusters.setter
     def clusters(self, val):
-        if not isinstance(val, dict):
+        if isinstance(val, dict):
             self._clusters = deepcopy(val)
         else:
             raise TypeError('clusters must be type of <dict> but got %s' % val.__class__.__name__)
