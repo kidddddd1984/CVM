@@ -2,14 +2,16 @@
 # -*- coding:utf-8 -*-
 
 from copy import deepcopy
-
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize_scalar
 
 from .utils import UnitConvert as uc
-from .vibration import ClusterVibration as cv
+from .utils import mixed_atomic_weight
+from .vibration import ClusterVibration
+from .normalizer import Normalizer
 
 
 class Sample(object):
@@ -19,91 +21,114 @@ class Sample(object):
 
     def __init__(
             self,
-            series: dict,
-            coord_num: list,
+            label,
             *,
-            boltzmann_cons=8.6173303e-5,
-            ry2eV=13.605698066,
+            temperature=None,
+            energies=None,
+            clusters=None,
+            global_relax=True,
+            mean='arithmetic',
+            vibration=True,
+            skip=False,
+            x_1=0.001,
+            condition=1e-07,
+            host='host',
+            lattice='lattice',
+            r_0=None,
+            normalizer=None,
             patch=None,
     ):
         super().__init__()
-        self.bzc = boltzmann_cons
-        self.conv = ry2eV
-        self.coord_num = np.array(coord_num)
-        self.condition = np.float32(series['condition'])
-        self.x_1 = np.float64(series['x_1'])
-        # chemical potential
+        self.label = label
+        self.mean = mean
+        self.vibration = vibration
+        self.condition = condition
+        self.skip = skip
+        self.x_1 = x_1
+        self.r_0 = r_0
+        self.global_relax = global_relax
+        self.patch = patch
 
+        # ##########
+        # private vars
+        # ##########
+        self._host = host
+        self._lattice = lattice
+        self._debye_funcs = defaultdict(None)
         self._lattice_func = None
         self._int_func = None
-        self._patch = patch
+        self._clusters = None
+        self._normalizer = None
+        self._temp = None
 
-        self._normalize = deepcopy(series['normalize'])
-        self._no_imp_depen = series['no_imp_depen']
-        self._fix_r0 = uc.lc2ad(np.float64(series['fix_r0'])) if 'fix_r0' in series else None
-        self._host_en = np.array(series['host_en'], np.float64)
-        self._label = series['label']
-        self._latts = np.array(series['lattice_c'], np.float64)
-
-        # generate temperature steps
-        self._temp = self._gen_temp(series['temp'])
-
-        # generate raw interaction energies
-        self._raw_ints, self._pair_labels = self._gen_raw_ints(series['energies'])
-
-        # generate normalized energies
-        self._normalized_ens = self._gen_normalized_ens(series['energies'])
+        if energies is not None:
+            self.make_debye_func(energies)
+        if normalizer is not None:
+            self.normalizer = Normalizer(**normalizer)
+        if temperature is not None:
+            self.temperature = temperature
+        if clusters is not None:
+            self.clusters = clusters
 
         # generate free energy functions base on debye-grüneisen model
         self._int_func = self._gen_int_func()
 
-    @property
-    def host_energies(self):
-        return self._host_en.copy()
+    def make_debye_func(self, energies):
+        if isinstance(energies, pd.DataFrame):
+            # calculate debye function
+            energy_shift = energies[self._host]
+            xs = energies[self._lattice]
+            energies = energies.drop(columns=[self._host, self._lattice])
+
+            for c in energies:
+                ys = energies[c]
+                mass = mixed_atomic_weight(c, mean=self.mean)
+                self._debye_funcs[c] = ClusterVibration(xs,
+                                                        ys,
+                                                        mass,
+                                                        energy_shift=energy_shift,
+                                                        vibration=self.vibration)
+
+        else:
+            raise TypeError('energies must be <pd.DataFrame> but got %s' %
+                            energies.__class__.__name__)
 
     @property
-    def raw_ints_ev(self):
-        return pd.DataFrame(data=self.conv * self._raw_ints,
-                            index=self._pair_labels,
-                            columns=self._latts)
+    def temperature(self):
+        return self._temp.copy()
+
+    @temperature.setter
+    def temperature(self, temp):
+        l = len(temp)  # get length of 'temp'
+        if l == 1:
+            self._temp = np.array(temp, np.single)
+        elif l == 3:
+            self._temp = np.linspace(temp[0], temp[1], temp[2])
+        else:
+            raise NameError('temperature was configured in error format')
 
     @property
-    def raw_ints_ry(self):
-        return pd.DataFrame(data=self._raw_ints, index=self._pair_labels, columns=self._latts)
+    def clusters(self):
+        return deepcopy(self._clusters)
 
-    def _gen_raw_ints(self, energies):
-        xs = uc.lc2ad(self._latts)
+    @clusters.setter
+    def clusters(self, val):
+        if not isinstance(val, dict):
+            self._clusters = deepcopy(val)
+        else:
+            raise TypeError('clusters must be type of <dict> but got %s' % val.__class__.__name__)
 
-        def pair_label(datas, start=1):
-            label = 'pair' + str(start)
+    @property
+    def normalizer(self):
+        return self._normalizer
 
-            while label in datas:
-                yield label
-                start += 1
-                label = 'pair' + str(start)
-
-        # get interaction energies
-        def raw_int(data):
-            tmp = np.zeros(len(xs))
-            for d in data:
-                tmp += d['coefficient'] * np.array(d['energy'])
-            return tmp
-
-        pair_labels = [n for n in pair_label(energies)]
-        if 'cut_pair' in energies:
-            pair_labels = pair_labels[:-energies['cut_pair']]
-        return np.array([raw_int(energies[n]) for n in pair_labels]), pair_labels
-
-    def _gen_normalized_ens(self, energies):
-        energies = deepcopy(energies)
-        int_diffs = self._gen_normalize_diff()
-
-        # 1st total energy
-        for i, l in enumerate(self._pair_labels):
-            energies[l][0]['energy'] = np.array(energies[l][0]['energy']) + int_diffs[i]
-        # energies['pair2'][0]['energy'] = np.array(energies['pair2'][0]['energy']) + int_diffs[1]
-
-        return energies
+    @normalizer.setter
+    def normalizer(self, val):
+        if isinstance(val, Normalizer):
+            self._normalizer = val
+        else:
+            raise TypeError('normalizer must be type of <Normalizer> but got %s' %
+                            val.__class__.__name__)
 
     def get_r0(self, T, c, *, wc=True):
         if self._fix_r0 is not None:
@@ -179,20 +204,6 @@ class Sample(object):
                                   noVib=False)
 
         return (int_pair1, int_pair2), int_trip, int_tetra
-
-    def _gen_temp(self, temp):
-        l = len(temp)  # get length of 'temp'
-        if l == 1:
-            temp = np.array(temp, np.single)
-        elif l == 3:
-            temp = np.linspace(temp[0], temp[1], temp[2])
-        else:
-            raise NameError('temperature was configured in error format')
-        return temp
-
-    @property
-    def temperature(self):
-        return self._temp.copy()
 
     def __call__(self, T, c):
         """Get interaction energies at concentration c.

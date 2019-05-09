@@ -37,7 +37,7 @@ experiment:
 
 # series is a list contains sets of raw data and parameters for CVM calculations
 series:
-  - energies: energies.csv # raw energies
+  - energies: cluster.csv # raw energies
     label: $T_\mathrm{FD}=800$K
     temp: [300, 650, 10]
 
@@ -47,10 +47,11 @@ series:
     host: host # optional, by default host = host
     lattice: lattice # optional, by default lattice = lattice
 
-    normalize:
+    normalizer:
+      energies: cluster.csv
       targets:
         Al2Mg2:
-          step: [1, 11, 2]
+          steps: [[1, 11, 2]]
           ratios: [
               12,
               6,
@@ -78,7 +79,7 @@ series:
               24,
               48, # 20th
             ]
-      int: # set how to calculate interaction energy for each one
+      formulas: # set how to calculate interaction energy for each one
         - { 1_II: 1, 1_IH: -2, 1_HH: 1 }
         - { 2_II: 1, 2_IH: -2, 2_HH: 1 }
         - { 3_II: 1, 3_IH: -2, 3_HH: 1 }
