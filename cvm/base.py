@@ -26,7 +26,7 @@ class BaseCVM(ABC):
         """
 
     @abstractmethod
-    def update_energy(self, e_ints, **kwargs):
+    def update_energy(self, sample, **kwargs):
         """
         Update energies.
         """
@@ -125,11 +125,12 @@ class BaseCVM(ABC):
                      boltzmann_cons=8.6173303e-5,
                      ry2eV=13.605698066,
                      verbose=True):
-        ret = cls(meta,
-                  experiment=experiment,
-                  boltzmann_cons=boltzmann_cons,
-                  ry2eV=ry2eV,
-                  verbose=verbose)
+        ret = cls(
+            meta,
+            experiment=experiment,
+            boltzmann_cons=boltzmann_cons,
+            ry2eV=ry2eV,
+            verbose=verbose)
 
         for s in samples:
             ret.add_sample(s)
@@ -157,7 +158,7 @@ class BaseCVM(ABC):
             for T in sample.temperature:
 
                 # β = 1/kt
-                self.beta = np.float64(pow(self.bzc * T, -1))
+                self.beta = np.power(self.bzc * T, -1)
 
                 # reset
                 self.reset(**reset_paras)

@@ -63,10 +63,10 @@ class Sample(object):
 
         if energies is not None:
             self.make_debye_func(energies)
+        if temperature is not None:
+            self.set_temperature(temperature)
         if normalizer is not None:
             self.normalizer = Normalizer(**normalizer)
-        if temperature is not None:
-            self.temperature = temperature
         if clusters is not None:
             self.clusters = clusters
 
@@ -81,24 +81,20 @@ class Sample(object):
             energies = energies.drop(columns=[self._host, self._lattice])
 
             for c in energies:
-                ys = energies[c]
-                mass = mixed_atomic_weight(c, mean=self.mean)
-                self._debye_funcs[c] = ClusterVibration(xs,
-                                                        ys,
-                                                        mass,
-                                                        energy_shift=energy_shift,
-                                                        vibration=self.vibration)
+                mass, num = mixed_atomic_weight(c, mean=self.mean)
+                ys = energies[c] / num
+                self._debye_funcs[c] = ClusterVibration(
+                    xs, ys, mass, energy_shift=energy_shift, vibration=self.vibration)
 
         else:
-            raise TypeError('energies must be <pd.DataFrame> but got %s' %
-                            energies.__class__.__name__)
+            raise TypeError(
+                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
 
     @property
     def temperature(self):
         return self._temp.copy()
 
-    @temperature.setter
-    def temperature(self, temp):
+    def set_temperature(self, temp):
         l = len(temp)  # get length of 'temp'
         if l == 1:
             self._temp = np.array(temp, np.single)
@@ -127,8 +123,8 @@ class Sample(object):
         if isinstance(val, Normalizer):
             self._normalizer = val
         else:
-            raise TypeError('normalizer must be type of <Normalizer> but got %s' %
-                            val.__class__.__name__)
+            raise TypeError(
+                'normalizer must be type of <Normalizer> but got %s' % val.__class__.__name__)
 
     def get_r0(self, T, c, *, wc=True):
         if self._fix_r0 is not None:
@@ -153,9 +149,8 @@ class Sample(object):
             def _lattice_gene(T, c):
                 _lattice_minimums = list()
                 for formula in formulas:
-                    _lattice_min = minimize_scalar(lambda r: formula(r, T),
-                                                   bounds=bounds,
-                                                   method='bounded')
+                    _lattice_min = minimize_scalar(
+                        lambda r: formula(r, T), bounds=bounds, method='bounded')
                     _lattice_minimums.append(_lattice_min.x)
 
                 _lattice_func = UnivariateSpline(ratio, _lattice_minimums[::-1], k=k)
@@ -174,34 +169,38 @@ class Sample(object):
     def _gen_int_func(self):
         xs = uc.lc2ad(self._latts)
         host = self._host_en * self.conv
-        int_pair1 = cv.int_energy(xs,
-                                  self._normalized_ens['pair1'],
-                                  host,
-                                  bzc=self.bzc,
-                                  num=4,
-                                  conv=self.conv,
-                                  noVib=False)
-        int_pair2 = cv.int_energy(xs,
-                                  self._normalized_ens['pair2'],
-                                  host,
-                                  bzc=self.bzc,
-                                  num=6,
-                                  conv=self.conv,
-                                  noVib=False)
-        int_trip = cv.int_energy(xs,
-                                 self._normalized_ens['triple'],
-                                 host,
-                                 bzc=self.bzc,
-                                 num=4,
-                                 conv=self.conv,
-                                 noVib=False)
-        int_tetra = cv.int_energy(xs,
-                                  self._normalized_ens['tetra'],
-                                  host,
-                                  bzc=self.bzc,
-                                  num=4,
-                                  conv=self.conv,
-                                  noVib=False)
+        int_pair1 = cv.int_energy(
+            xs,
+            self._normalized_ens['pair1'],
+            host,
+            bzc=self.bzc,
+            num=4,
+            conv=self.conv,
+            noVib=False)
+        int_pair2 = cv.int_energy(
+            xs,
+            self._normalized_ens['pair2'],
+            host,
+            bzc=self.bzc,
+            num=6,
+            conv=self.conv,
+            noVib=False)
+        int_trip = cv.int_energy(
+            xs,
+            self._normalized_ens['triple'],
+            host,
+            bzc=self.bzc,
+            num=4,
+            conv=self.conv,
+            noVib=False)
+        int_tetra = cv.int_energy(
+            xs,
+            self._normalized_ens['tetra'],
+            host,
+            bzc=self.bzc,
+            num=4,
+            conv=self.conv,
+            noVib=False)
 
         return (int_pair1, int_pair2), int_trip, int_tetra
 

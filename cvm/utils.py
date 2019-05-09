@@ -182,18 +182,20 @@ def mixed_atomic_weight(formula: str, *, mean='arithmetic'):
         'Og': 294.0
     }
 
-    atoms = []
+    weights = []
+    num = 0
     for k, v in parse_formula(formula).items():
-        atoms += [atomic_weight[k]] * int(v)
+        weights += [atomic_weight[k]] * int(v)
+        num += int(v)
 
     if mean is 'arithmetic':
-        return np.mean(atoms)
+        return np.mean(weights), num
 
     if mean is 'harmonic':
-        return hmean(atoms)
+        return hmean(weights), num
 
     if mean is 'geometric':
-        return gmean(atoms)
+        return gmean(weights), num
 
 
 def parse_formula(formula):
