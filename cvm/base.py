@@ -5,9 +5,11 @@ import datetime as dt
 from abc import ABC, abstractmethod
 from copy import deepcopy
 
+import pandas as pd
 import numpy as np
-
+from pathlib import Path
 from .sample import Sample
+from .utils import parse_input_set
 
 
 class BaseCVM(ABC):
@@ -26,7 +28,7 @@ class BaseCVM(ABC):
         """
 
     @abstractmethod
-    def update_energy(self, sample, **kwargs):
+    def update_energy(self, e_ints, **kwargs):
         """
         Update energies.
         """
@@ -37,18 +39,12 @@ class BaseCVM(ABC):
         Main loop
         """
 
-    def __init__(self,
-                 meta: dict,
-                 *series,
-                 experiment=None,
-                 boltzmann_cons=8.6173303e-5,
-                 ry2eV=13.605698066,
-                 verbose=True):
+    def __init__(self, meta: dict, *, series=None, experiment=None, verbose=True):
         super().__init__()
         self.count = 0
-        self.checker = np.float64(0)
+        self.checker = np.float64(1.0)
         self.verbose = verbose
-        self._samples = []
+        self._samples = {}
         self.beta = None
 
         if not isinstance(meta, dict):
@@ -60,82 +56,36 @@ class BaseCVM(ABC):
 
         self.expt = experiment
 
-        # Boltzmann constant
-        self.bzc = np.float32(boltzmann_cons)
-
-        # coversion
-        self.conv = np.float32(ry2eV)
-
         ##################
         # init series
         ##################
         for s in series:
             if 'skip' in s and s['skip']:
                 continue
-            self._build_sample(s)
+            tmp = Sample(**s)
+            self._samples[tmp.label] = tmp
 
-    @property
-    def samples(self):
-        return deepcopy(self._samples)
+    def __getitem__(self, i):
+        return self._samples[i]
 
     def add_sample(self, val):
         if not isinstance(val, Sample):
             raise TypeError('sample must be a Sample instance')
-        self._samples.append(val)
-
-    def _build_sample(self, series):
-        self._samples.append(
-            Sample(
-                series,
-                [
-                    12,
-                    6,
-                    24,
-                    12,
-                    24,
-                    8,
-                    48,
-                    6,
-                    12,  # 9th-a
-                    24,  # 9th-b
-                    4,
-                    24,
-                    24,
-                    48,  # 13th-a
-                    24,  # 13th-b
-                    48,
-                    12,
-                    24,  # 16th-a
-                    24,  # 16th-b
-                    24,  # 17th-a
-                    6,  # 17th-b
-                    48,  # 18th-a
-                    24,  # 18th-b
-                    24,
-                    48  # 20th
-                ],
-                boltzmann_cons=self.bzc,
-                ry2eV=self.conv))
+        self._samples[val.label] = val
 
     @classmethod
-    def from_samples(cls,
-                     meta: dict,
-                     *samples,
-                     experiment=None,
-                     boltzmann_cons=8.6173303e-5,
-                     ry2eV=13.605698066,
-                     verbose=True):
-        ret = cls(
-            meta,
-            experiment=experiment,
-            boltzmann_cons=boltzmann_cons,
-            ry2eV=ry2eV,
-            verbose=verbose)
+    def from_samples(cls, meta: dict, *samples, experiment=None, verbose=True):
+        ret = cls(meta, experiment=experiment, verbose=verbose)
 
         for s in samples:
             ret.add_sample(s)
 
         return ret
+
+    @classmethod
+    def from_input_set(cls, path_of_set, *, is_ry_unit=True, is_lattice_unit=True):
+        inp = parse_input_set(path_of_set, is_ry_unit=is_ry_unit, is_lattice_unit=is_lattice_unit)
+        return cls(**inp)
 
     def __call__(self, *, reset_paras={}, update_en_paras={}, process_paras={}):
         """
@@ -155,15 +105,17 @@ class BaseCVM(ABC):
             self.x_[1] = sample.x_1
             self.x_[0] = 1 - sample.x_1
 
-            for T in sample.temperature:
+            for T, r_0 in sample():
 
                 # β = 1/kt
-                self.beta = np.power(self.bzc * T, -1)
+                self.beta = np.power(8.6173303e-5 * T, -1)
 
                 # reset
+                self.count = 0
+                self.checker = np.float64(1.0)
                 self.reset(**reset_paras)
                 while self.checker > sample.condition:
-                    e_int = sample(T, self.x_[1])
+                    e_int = sample(T, r_0(self.x_[1]))
                     self.update_energy(e_int, **update_en_paras)
                     self.process(**process_paras)
 

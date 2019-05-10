@@ -8,20 +8,8 @@ from ..base import BaseCVM
 class TetraOctahedron(BaseCVM):
     """docstring for tetraOctahedron"""
 
-    def __init__(self,
-                 meta: dict,
-                 *series,
-                 experiment=None,
-                 boltzmann_cons=8.6173303e-5,
-                 ry2eV=13.605698066,
-                 verbose=True):
-        super().__init__(
-            meta,
-            *series,
-            experiment=experiment,
-            boltzmann_cons=boltzmann_cons,
-            ry2eV=ry2eV,
-            verbose=verbose)
+    def __init__(self, meta: dict, *, series=None, experiment=None, verbose=True):
+        super().__init__(meta, series=series, experiment=experiment, verbose=verbose)
 
         ####################
         # define var
@@ -33,7 +21,6 @@ class TetraOctahedron(BaseCVM):
         self.enO = np.zeros((2, 2, 2, 2, 2, 2), np.float64)
         self.beta = np.float64(0.0)
         self.mu = np.zeros((2), np.float64)
-        self.checker = np.float64(1.0)
         self.af_ = np.zeros((2, 2, 2), np.float64)
         self.main_condition = np.float64(1e-3)
         self.sub_condition = np.float64(1e-2)
@@ -45,18 +32,18 @@ class TetraOctahedron(BaseCVM):
 
         # pure energy of 2body-1st
         en1 = np.zeros((2, 2), np.float64)
-        en1[0, 1] = en1[1, 0] = 0.5 * (en1[0, 0] + en1[1, 1] - e_ints[0][0])
+        en1[0, 1] = en1[1, 0] = 0.5 * (en1[0, 0] + en1[1, 1] - e_ints['1st'])
 
         #############################################
         # tetrahedron
         #############################################
         # 3body-1st interaction energy
         de31 = np.zeros((2, 2, 2), np.float64)
-        de31[1, 1, 1] = e_ints[1]
+        de31[1, 1, 1] = e_ints['triple']
 
         # 4body-1st interaction energy
         de41 = np.zeros((2, 2, 2, 2), np.float64)
-        de41[1, 1, 1, 1] = e_ints[2]
+        de41[1, 1, 1, 1] = e_ints['tetra']
 
         # energy ε
         it = np.nditer(self.enT, flags=['multi_index'])
@@ -77,7 +64,7 @@ class TetraOctahedron(BaseCVM):
         # pure energy of 2body-1st
         en2 = np.zeros((2, 2), np.float64)
         en2[0, 1] = en2[1, 0] = \
-            0.5 * (en2[0, 0] + en2[1, 1] - e_ints[0][1])
+            0.5 * (en2[0, 0] + en2[1, 1] - e_ints['2nd'])
 
         # energy ε
         it = np.nditer(self.enO, flags=['multi_index'])
@@ -94,8 +81,6 @@ class TetraOctahedron(BaseCVM):
 
     def reset(self):
 
-        self.count = 0
-        self.checker = np.float64(1.0)
         self.af_ = np.zeros((2, 2, 2), np.float64)
         self.main_condition = np.float64(1e-3)
         self.sub_condition = np.float64(1e-2)
@@ -119,9 +104,9 @@ class TetraOctahedron(BaseCVM):
         Z = z_ijk * z_ikl * z_ijl * z_jkl
         """
         # exp
-        exp = np.exp(-self.beta * self.enT[i, j, k, l] +
-                     (self.beta / 8) * (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]) +
-                     self.af_[i, j, k] + self.af_[i, j, l] + self.af_[i, k, l] + self.af_[j, k, l])
+        exp = np.exp(-self.beta * self.enT[i, j, k, l] + (self.beta / 8) *
+                     (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]) + self.af_[i, j, k] +
+                     self.af_[i, j, l] + self.af_[i, k, l] + self.af_[j, k, l])
 
         # X
         X = self.x_[i] * self.x_[j] * self.x_[k] * self.x_[l]

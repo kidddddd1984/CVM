@@ -39,7 +39,7 @@ experiment:
 series:
   - energies: cluster.csv # raw energies
     label: $T_\mathrm{FD}=800$K
-    temp: [300, 650, 10]
+    temperature: [300, 650, 10]
 
     skip: false # optional, by default true
     x_1: 0.01 # optional, by default x_1 = 0.001
@@ -47,8 +47,14 @@ series:
     host: host # optional, by default host = host
     lattice: lattice # optional, by default lattice = lattice
 
+    # set how to estimate r_0 by the given T and c
+    # if omit, r_0 will be calculated from each phase respectively.
+    # if constant, will ignore T and c
+    # if dict, will do a parabolic curve fitting
+    r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
+
     normalizer:
-      energies: cluster.csv
+      energies: normalizer.csv
       targets:
         Al2Mg2:
           steps: [[1, 11, 2]]
@@ -79,7 +85,7 @@ series:
               24,
               48, # 20th
             ]
-      formulas: # set how to calculate interaction energy for each one
+      clusters: # set how to calculate interaction energy for each one
         - { 1_II: 1, 1_IH: -2, 1_HH: 1 }
         - { 2_II: 1, 2_IH: -2, 2_HH: 1 }
         - { 3_II: 1, 3_IH: -2, 3_HH: 1 }
@@ -93,7 +99,7 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters:
-      1st: { Al2Mg2: 1, Al3Mg1: -2, Al4: 1 }
+      1st: { Al2Mg2': 1, Al3Mg1: -2, Al4: 1 }
       2nd: { Al4Mg2: 1, Al5Mg1: -2, Al6: 1 }
       triple: { Al1Mg3: 1, Al2Mg2: -3, Al3Mg1: 3, Al4: -1 }
       tetra: { Mg4: 1, Al1Mg3: -4, Al2Mg2: 6, Al3Mg1: -4, Al4: 1 }

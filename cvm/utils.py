@@ -8,7 +8,8 @@ import re as regex
 import sys
 import tempfile
 from pathlib import Path
-
+from ruamel.yaml import YAML
+import pandas as pd
 import numpy as np
 import collections
 import re
@@ -196,6 +197,36 @@ def mixed_atomic_weight(formula: str, *, mean='arithmetic'):
 
     if mean is 'geometric':
         return gmean(weights), num
+
+
+def parse_input_set(path_of_set, *, is_ry_unit=True, is_lattice_unit=True):
+    path = Path(path_of_set).expanduser().resolve()
+    if not path.is_dir() or not (path / 'input.yml').exists():
+        raise RuntimeError('can not parse input set')
+    yaml = YAML()
+    with open(str(path / 'input.yml'), 'r') as f:
+        inp = yaml.load(f)
+
+    if 'meta' not in inp:
+        raise RuntimeError('can not find an entry named meta')
+
+    if 'series' in inp:
+        for s in inp['series']:
+            ens = pd.read_csv(path / s['energies'], index_col=s['lattice'])
+            del s['lattice']
+            if is_ry_unit:
+                ens = ens * 13.605698066
+            if is_lattice_unit:
+                ens.index = UnitConvert.lc2ad(ens.index)
+            s['energies'] = ens
+
+            if 'normalizer' in s:
+                ens = pd.read_csv(path / s['normalizer']['energies'])
+                if is_ry_unit:
+                    ens = ens * 13.605698066
+                s['normalizer']['energies'] = ens
+
+    return inp
 
 
 def parse_formula(formula):

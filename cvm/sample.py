@@ -26,14 +26,12 @@ class Sample(object):
             temperature=None,
             energies=None,
             clusters=None,
-            global_relax=True,
             mean='arithmetic',
             vibration=True,
             skip=False,
             x_1=0.001,
             condition=1e-07,
             host='host',
-            lattice='lattice',
             r_0=None,
             normalizer=None,
             patch=None,
@@ -45,15 +43,14 @@ class Sample(object):
         self.condition = condition
         self.skip = skip
         self.x_1 = x_1
-        self.r_0 = r_0
-        self.global_relax = global_relax
         self.patch = patch
 
         # ##########
         # private vars
         # ##########
         self._host = host
-        self._lattice = lattice
+        self._r_0 = r_0
+        self._ens = None
         self._debye_funcs = defaultdict(None)
         self._lattice_func = None
         self._int_func = None
@@ -70,29 +67,27 @@ class Sample(object):
         if clusters is not None:
             self.clusters = clusters
 
-        # generate free energy functions base on debye-grüneisen model
-        self._int_func = self._gen_int_func()
-
     def make_debye_func(self, energies):
         if isinstance(energies, pd.DataFrame):
+            self._ens = energies
+
             # calculate debye function
             energy_shift = energies[self._host]
-            xs = energies[self._lattice]
-            energies = energies.drop(columns=[self._host, self._lattice])
+            xs = energies.index.values
+            energies = energies.drop(columns=[self._host])
 
             for c in energies:
                 mass, num = mixed_atomic_weight(c, mean=self.mean)
                 ys = energies[c] / num
-                self._debye_funcs[c] = ClusterVibration(
-                    xs, ys, mass, energy_shift=energy_shift, vibration=self.vibration)
+                self._debye_funcs[c] = ClusterVibration(xs,
+                                                        ys,
+                                                        mass,
+                                                        energy_shift=energy_shift,
+                                                        vibration=self.vibration)
 
         else:
-            raise TypeError(
-                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
-
-    @property
-    def temperature(self):
-        return self._temp.copy()
+            raise TypeError('energies must be <pd.DataFrame> but got %s' %
+                            energies.__class__.__name__)
 
     def set_temperature(self, temp):
         l = len(temp)  # get length of 'temp'
@@ -102,6 +97,10 @@ class Sample(object):
             self._temp = np.linspace(temp[0], temp[1], temp[2])
         else:
             raise NameError('temperature was configured in error format')
+
+    @property
+    def energies(self):
+        return self._ens
 
     @property
     def clusters(self):
@@ -123,88 +122,10 @@ class Sample(object):
         if isinstance(val, Normalizer):
             self._normalizer = val
         else:
-            raise TypeError(
-                'normalizer must be type of <Normalizer> but got %s' % val.__class__.__name__)
+            raise TypeError('normalizer must be type of <Normalizer> but got %s' %
+                            val.__class__.__name__)
 
-    def get_r0(self, T, c, *, wc=True):
-        if self._fix_r0 is not None:
-            return self._fix_r0 if wc else uc.ad2lc(self._fix_r0)
-
-        xs = uc.lc2ad(self._latts)
-        host = self._host_en * self.conv
-
-        def phase_en_func(*datas, num=4):
-            for data in datas:
-                ys = np.array(data['energy'], np.float64) * self.conv / num
-                mass = np.array(data['mass'], np.float64)
-                yield cv.free_energy(xs, ys, host, mass, self.bzc)
-
-        def lattice_func(*formulas, bounds=None, ratio=None, k=2):
-            if bounds is None:
-                bounds = (xs[0], xs[-1])
-
-            if ratio is None:
-                ratio = [0, 0.25, 0.5, 0.75, 1]
-
-            def _lattice_gene(T, c):
-                _lattice_minimums = list()
-                for formula in formulas:
-                    _lattice_min = minimize_scalar(
-                        lambda r: formula(r, T), bounds=bounds, method='bounded')
-                    _lattice_minimums.append(_lattice_min.x)
-
-                _lattice_func = UnivariateSpline(ratio, _lattice_minimums[::-1], k=k)
-                return _lattice_func(0.0) if self._no_imp_depen else _lattice_func(c)
-
-            return _lattice_gene
-
-        # if None, build new one
-        # here, we have to use single-asterisk representation to change the generator to tuple
-        if self._lattice_func is None:
-            self._lattice_func = lattice_func(*phase_en_func(*self._normalized_ens['tetra'], num=4))
-
-        r0 = self._lattice_func(T, c)
-        return r0 if wc else uc.ad2lc(r0)
-
-    def _gen_int_func(self):
-        xs = uc.lc2ad(self._latts)
-        host = self._host_en * self.conv
-        int_pair1 = cv.int_energy(
-            xs,
-            self._normalized_ens['pair1'],
-            host,
-            bzc=self.bzc,
-            num=4,
-            conv=self.conv,
-            noVib=False)
-        int_pair2 = cv.int_energy(
-            xs,
-            self._normalized_ens['pair2'],
-            host,
-            bzc=self.bzc,
-            num=6,
-            conv=self.conv,
-            noVib=False)
-        int_trip = cv.int_energy(
-            xs,
-            self._normalized_ens['triple'],
-            host,
-            bzc=self.bzc,
-            num=4,
-            conv=self.conv,
-            noVib=False)
-        int_tetra = cv.int_energy(
-            xs,
-            self._normalized_ens['tetra'],
-            host,
-            bzc=self.bzc,
-            num=4,
-            conv=self.conv,
-            noVib=False)
-
-        return (int_pair1, int_pair2), int_trip, int_tetra
-
-    def __call__(self, T, c):
+    def ie(self, T, r=None):
         """Get interaction energies at concentration c.
         
         Parameters
@@ -218,78 +139,37 @@ class Sample(object):
             Named tuple contains calculated interaction energies.
         """
 
-        r0 = self.get_r0(T, c)
-        int_pair1 = self._int_func[0][0]
-        int_pair2 = self._int_func[0][1]
-        int_trip = self._int_func[1]
-        int_tetra = self._int_func[2]
+        def _int(cluster):
+            ret_ = 0
+            for k, v in cluster.items():
+                ret_ += self[k](T, r) * v
+            return ret_
 
-        pair1 = int_pair1(r0, T)
-        pair2 = int_pair2(r0, T)
-        trip = int_trip(r0, T)
-        tetra = int_tetra(r0, T)
-        if self._patch is None:
-            return (pair1, pair2), trip, tetra
-        tmp = self._patch(uc.ad2lc(r0))
-        return (pair1 + tmp[0][0], pair2 + tmp[0][1]), trip + tmp[1], tetra + tmp[2]
+        ret = {}
+        for k, v in self._clusters.items():
+            ret[k] = _int(v)
 
-    def _gen_normalize_diff(self):
-        """
-        2nd parameter refer to the neighbor that transfer to
-        """
+        return ret
 
-        transfers: list = self._normalize
-        _int_diff = np.zeros_like(self._raw_ints)
+    def __getitem__(self, i):
+        return self._debye_funcs[i]
 
-        for trans in transfers:
-            length = len(trans)
+    def __call__(self, *, temperature=None):
 
-            to = 1
-            start = to + 1
-            end = _int_diff.shape[0]
-            percent = 1
+        def r_0_func(t):
+            x_mins = []
+            c_mins = []
 
-            if length > 0:
-                to = trans[0]
-            if length > 1:
-                end = trans[1]
-            if length > 2:
-                start = trans[2]
-            if length > 3:
-                percent = trans[3]
+            for k, v in self._r_0.items():
+                _, x_min = self[k](t)
+                x_mins.append(x_min)
+                c_mins.append(v)
 
-            # prepare range
-            if start > _int_diff.shape[0] or end > _int_diff.shape[0] or start > end:
-                raise IndexError('index error')
-            _range = range(start - 1, end)
+            return UnivariateSpline(c_mins, x_mins, k=4)
 
-            # print(_range)
-            for index in _range:
-                if index == to - 1:
-                    pass
-                else:
-                    _int_diff[to - 1] += self.coord_num[index] * self._raw_ints[
-                        index] * percent / self.coord_num[to - 1]
-
-        return _int_diff
-
-    @classmethod
-    def int_energy(cls, xs, datas, host, bzc, num, conv, *, noVib=False):
-        """
-        generate interaction energy
-        """
-        parts = []
-        for data in datas:
-            coeff = np.int(data['coefficient'])
-            mass = np.float64(data['mass'])
-            ys = np.array(data['energy'], np.float64) * conv / num
-            part = cls.free_energy(xs, ys, host, mass, bzc, noVib=noVib)
-            parts.append((coeff, part))
-
-        def __int(r, T):
-            int_en = np.float64(0)
-            for part in parts:
-                int_en += part[0] * part[1](r, T)
-            return int_en * num
-
-        return __int
+        if temperature is not None:
+            self.set_temperature(temperature)
+        for t in self._temp:
+            if self._r_0 is not dict:
+                yield t, self._r_0
+            yield t, r_0_func(t)

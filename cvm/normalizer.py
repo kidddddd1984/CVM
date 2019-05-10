@@ -6,13 +6,13 @@ from collections import defaultdict
 
 class Normalizer():
 
-    def __init__(self, energies, formulas, targets):
+    def __init__(self, energies, clusters, targets):
         if not isinstance(energies, pd.DataFrame):
             raise TypeError('energies must be <pd.DataFrame> but got %s' %
                             energies.__class__.__name__)
 
         _ints = []
-        for f in formulas:
+        for f in clusters:
             tmp = 0
             for k, v in f.items():
                 tmp += energies[k].values * v
@@ -23,7 +23,7 @@ class Normalizer():
         for k, v in targets.items():
             self._diff[k] = self._energy_diff(**v)
 
-    def __item__(self, i):
+    def __getitem__(self, i):
         return self._diff[i]
 
     def _energy_diff(self, steps, ratios):
@@ -38,7 +38,7 @@ class Normalizer():
 
             to = 1
             start = to + 1
-            end = _int_diff.shape[0]
+            end = self._ints.shape[0]
             percent = 1
 
             if length > 0:
