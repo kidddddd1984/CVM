@@ -2,7 +2,8 @@
 # -*- coding:utf-8 -*-
 
 import datetime as dt
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
+from collections import defaultdict
 from copy import deepcopy
 
 import pandas as pd
@@ -12,7 +13,7 @@ from .sample import Sample
 from .utils import parse_input_set
 
 
-class BaseCVM(ABC):
+class BaseCVM(defaultdict, metaclass=ABCMeta):
     """
     Abstract CVM class
     ====================
@@ -44,7 +45,6 @@ class BaseCVM(ABC):
         self.count = 0
         self.checker = np.float64(1.0)
         self.verbose = verbose
-        self._samples = {}
         self.beta = None
 
         if not isinstance(meta, dict):
@@ -63,15 +63,12 @@ class BaseCVM(ABC):
             if 'skip' in s and s['skip']:
                 continue
             tmp = Sample(**s)
-            self._samples[tmp.label] = tmp
-
-    def __getitem__(self, i):
-        return self._samples[i]
+            self[tmp.label] = tmp
 
     def add_sample(self, val):
         if not isinstance(val, Sample):
             raise TypeError('sample must be a Sample instance')
-        self._samples[val.label] = val
+        self[val.label] = val
 
     @classmethod
     def from_samples(cls, meta: dict, *samples, experiment=None, verbose=True):
@@ -101,7 +98,7 @@ class BaseCVM(ABC):
             The parameters will be passed to ``self.process`` method, by default empty.
         """
         # temperature iteration
-        for sample in self._samples:
+        for label, sample in self.items():
             self.x_[1] = sample.x_1
             self.x_[0] = 1 - sample.x_1
 
@@ -115,8 +112,8 @@ class BaseCVM(ABC):
                 self.checker = np.float64(1.0)
                 self.reset(**reset_paras)
                 while self.checker > sample.condition:
-                    e_int = sample(T, r_0(self.x_[1]))
+                    e_int = sample.ie(T, r_0(self.x_[1]))
                     self.update_energy(e_int, **update_en_paras)
                     self.process(**process_paras)
 
-                yield T, self.x_[1], self.count, e_int
+                yield label, T, self.x_[1], self.count, e_int

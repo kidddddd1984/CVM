@@ -4,9 +4,10 @@ import pandas as pd
 from collections import defaultdict
 
 
-class Normalizer():
+class Normalizer(defaultdict):
 
     def __init__(self, energies, clusters, targets):
+        super().__init__()
         if not isinstance(energies, pd.DataFrame):
             raise TypeError('energies must be <pd.DataFrame> but got %s' %
                             energies.__class__.__name__)
@@ -17,14 +18,10 @@ class Normalizer():
             for k, v in f.items():
                 tmp += energies[k].values * v
             _ints.append(tmp)
-        self._ints = np.asarray(_ints)
+        self._ints = pd.DataFrame(data=_ints, columns=energies.index.tolist())
 
-        self._diff = defaultdict(None)
         for k, v in targets.items():
-            self._diff[k] = self._energy_diff(**v)
-
-    def __getitem__(self, i):
-        return self._diff[i]
+            self[k] = self._energy_diff(**v)
 
     def _energy_diff(self, steps, ratios):
         """
@@ -60,6 +57,6 @@ class Normalizer():
                 if index == to - 1:
                     pass
                 else:
-                    _int_diff += ratios[index] * self._ints[index] * percent / ratios[to - 1]
+                    _int_diff += ratios[index] * self._ints.values[index] * percent / ratios[to - 1]
 
         return _int_diff

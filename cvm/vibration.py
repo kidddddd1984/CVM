@@ -3,6 +3,7 @@ from collections import Iterable
 import numpy as np
 import pandas as pd
 from scipy.integrate import quad
+from .utils import mixed_atomic_weight
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import curve_fit, minimize_scalar
 
@@ -14,12 +15,21 @@ class ClusterVibration(object):
     Tools class for cluster vibration
     """
 
-    def __init__(self, xs, ys, mass, *, energy_shift=None, vibration=True, morse_paras_bounds=None):
+    def __init__(self,
+                 label,
+                 xs,
+                 ys,
+                 *,
+                 energy_shift=None,
+                 vibration=True,
+                 mean='arithmetic',
+                 morse_paras_bounds=None):
         assert len(xs) == len(ys), 'xs and ys must have same dim'
-        self._xs = self._check_input(xs)
-        self._ys = self._check_input(ys)
         self.vibration = vibration
-        self._mass = mass
+        self._label = label
+        self._mass, self._num = mixed_atomic_weight(label, mean=mean)
+        self._xs = self._check_input(xs)
+        self._ys = self._check_input(ys) / self._num
 
         # parameter bounds for fitting
         # order: c1, c2, lmd, r0
@@ -47,17 +57,15 @@ class ClusterVibration(object):
         poly_min = minimize_scalar(lambda _r: self.morse_potential(_r) + self._shift,
                                    bounds=(self._xs[0], self._xs[-1]),
                                    method='bounded')
-        self._lattic_cons = uc.ad2lc(poly_min.x)
+        self._lattic_cons = poly_min.x
         self._ground_en = poly_min.fun
 
     def _get_shift(self):
         poly_min = minimize_scalar(UnivariateSpline(self._xs, self._ys, k=4),
                                    bounds=(self._xs[0], self._xs[-1]),
                                    method='bounded')
-        # min_x = poly_min.x  # equilibrium atomic distance
-        min_y = np.float(poly_min.fun)  # ground status energy
 
-        return min_y
+        return poly_min.fun
 
     def _check_input(self, array):
         if isinstance(array, list):
@@ -86,7 +94,7 @@ class ClusterVibration(object):
 
     @property
     def equilibrium_lattice_cons(self):
-        return self._lattic_cons
+        return uc.ad2lc(self._lattic_cons)
 
     @property
     def x_0(self):
@@ -118,7 +126,7 @@ class ClusterVibration(object):
         ret, _ = quad(lambda t: t**n / (np.exp(t) - 1), 0, x)
         return (n / x**n) * ret
 
-    def __call__(self, T, r=None, *, min_x=False):
+    def __call__(self, T, r=None, *, min_x=None):
         """
         xs: array
             atomic distance between nearest-neighbor
@@ -134,17 +142,21 @@ class ClusterVibration(object):
 
         if r is not None:
             if not self.vibration:
-                return self.morse_potential(r) + self._shift
+                return (self.morse_potential(r) + self._shift) * self._num
 
             # construct vibration withed energy formula
-            return self.morse_potential(r) + self._shift + \
+            return (self.morse_potential(r) + self._shift + \
                 (9 / 8) * bzc * self.debye_temperature(r) - \
                 bzc * T * (self.debye_function(T, r) - \
-                3 * np.log(1 - np.exp(-(self.debye_temperature(r) / T))))
+                3 * np.log(1 - np.exp(-(self.debye_temperature(r) / T))))) * self._num
 
         if not self.vibration:
             if min_x:
-                return self._ground_en, self._lattic_cons
+                if min_x == 'ws':
+                    return self._ground_en * self._num, self._lattic_cons
+                if min_x == 'lattice':
+                    return self._ground_en * self._num, uc.ad2lc(self._lattic_cons)
+                raise ValueError("min_x can only be 'ws' or 'lattice' but got %s" % min_x)
             return self._ground_en
 
         poly_min = minimize_scalar(lambda _r: self(T, _r),
@@ -152,7 +164,11 @@ class ClusterVibration(object):
                                    method='bounded')
 
         if min_x:
-            return poly_min.fun, uc.ad2lc(poly_min.x)
+            if min_x == 'ws':
+                return poly_min.fun * self._num, poly_min.x
+            if min_x == 'lattice':
+                return poly_min.fun * self._num, uc.ad2lc(poly_min.x)
+            raise ValueError("min_x can only be 'ws' or 'lattice' but got %s" % min_x)
         return poly_min.fun
 
     def _fit_paras(self):

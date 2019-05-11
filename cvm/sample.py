@@ -8,13 +8,12 @@ import pandas as pd
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize_scalar
 
-from .utils import UnitConvert as uc
-from .utils import mixed_atomic_weight
+from .utils import UnitConvert
 from .vibration import ClusterVibration
 from .normalizer import Normalizer
 
 
-class Sample(object):
+class Sample(defaultdict):
     """
     Sample is a object which store a group of configuration data for calculation
     """
@@ -51,39 +50,47 @@ class Sample(object):
         self._host = host
         self._r_0 = r_0
         self._ens = None
-        self._debye_funcs = defaultdict(None)
         self._lattice_func = None
         self._int_func = None
         self._clusters = None
         self._normalizer = None
         self._temp = None
 
-        if energies is not None:
-            self.make_debye_func(energies)
+        if normalizer is not None:
+            self.set_normalizer(normalizer)
         if temperature is not None:
             self.set_temperature(temperature)
-        if normalizer is not None:
-            self.normalizer = Normalizer(**normalizer)
         if clusters is not None:
-            self.clusters = clusters
+            self.set_clusters(**clusters)
+        if energies is not None:
+            self.set_energies(energies)
 
-    def make_debye_func(self, energies):
+    def set_energies(self, energies):
+
         if isinstance(energies, pd.DataFrame):
             self._ens = energies
 
             # calculate debye function
             energy_shift = energies[self._host]
-            xs = energies.index.values
+            xs = UnitConvert.lc2ad(energies.index.values)
             energies = energies.drop(columns=[self._host])
 
             for c in energies:
-                mass, num = mixed_atomic_weight(c, mean=self.mean)
-                ys = energies[c] / num
-                self._debye_funcs[c] = ClusterVibration(xs,
-                                                        ys,
-                                                        mass,
-                                                        energy_shift=energy_shift,
-                                                        vibration=self.vibration)
+                ys = energies[c]
+                self[c] = ClusterVibration(c,
+                                           xs,
+                                           ys,
+                                           energy_shift=energy_shift,
+                                           mean=self.mean,
+                                           vibration=self.vibration)
+                if self._normalizer and c in self._normalizer:
+                    ys = energies[c] + self._normalizer[c]
+                    self[c + '~'] = ClusterVibration(c,
+                                                     xs,
+                                                     ys,
+                                                     energy_shift=energy_shift,
+                                                     mean=self.mean,
+                                                     vibration=self.vibration)
 
         else:
             raise TypeError('energies must be <pd.DataFrame> but got %s' %
@@ -106,24 +113,35 @@ class Sample(object):
     def clusters(self):
         return deepcopy(self._clusters)
 
-    @clusters.setter
-    def clusters(self, val):
-        if isinstance(val, dict):
-            self._clusters = deepcopy(val)
-        else:
-            raise TypeError('clusters must be type of <dict> but got %s' % val.__class__.__name__)
+    def set_clusters(self, **val):
+        self._clusters = deepcopy(val)
 
     @property
     def normalizer(self):
         return self._normalizer
 
-    @normalizer.setter
-    def normalizer(self, val):
+    def set_normalizer(self, val):
         if isinstance(val, Normalizer):
-            self._normalizer = val
+            pass
+        elif isinstance(val, dict):
+            val = Normalizer(**val)
         else:
-            raise TypeError('normalizer must be type of <Normalizer> but got %s' %
+            raise TypeError('normalizer must be a dict or has type of <Normalizer> but got %s' %
                             val.__class__.__name__)
+
+        self._normalizer = val
+        if self._ens is not None:
+            energy_shift = self._ens[self._host]
+            xs = UnitConvert.lc2ad(self._ens.index.values)
+            for k, v in self._normalizer.items():
+                if k in self._ens:
+                    ys = (self._ens[k] + v)
+                    self[k + '~'] = ClusterVibration(k,
+                                                     xs,
+                                                     ys,
+                                                     energy_shift=energy_shift,
+                                                     mean=self.mean,
+                                                     vibration=self.vibration)
 
     def ie(self, T, r=None):
         """Get interaction energies at concentration c.
@@ -151,9 +169,6 @@ class Sample(object):
 
         return ret
 
-    def __getitem__(self, i):
-        return self._debye_funcs[i]
-
     def __call__(self, *, temperature=None):
 
         def r_0_func(t):
@@ -161,15 +176,19 @@ class Sample(object):
             c_mins = []
 
             for k, v in self._r_0.items():
-                _, x_min = self[k](t)
+                _, x_min = self[k](t, min_x='ws')
                 x_mins.append(x_min)
                 c_mins.append(v)
 
-            return UnivariateSpline(c_mins, x_mins, k=4)
+            tmp = np.array([c_mins, x_mins])
+            index = np.argsort(tmp[0])
+            return UnivariateSpline(tmp[0, index], tmp[1, index], k=4)
 
         if temperature is not None:
             self.set_temperature(temperature)
+
         for t in self._temp:
-            if self._r_0 is not dict:
-                yield t, self._r_0
-            yield t, r_0_func(t)
+            if isinstance(self._r_0, dict):
+                yield t, r_0_func(t)
+            else:
+                yield t, lambda _: self._r_0

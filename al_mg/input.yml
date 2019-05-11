@@ -46,12 +46,14 @@ series:
     condition: 1e-07 # optional, by default condition = 1e-07
     host: host # optional, by default host = host
     lattice: lattice # optional, by default lattice = lattice
+    is_ry_unit: true # optional, set true to tell cvm to convert energies to eV unit.
+    mean: 'arithmetic' # optional, by default 'arithmetic'. set how to mix atom weights, can be 'arithmetic', 'harmonic', and 'geometric'
 
     # set how to estimate r_0 by the given T and c
     # if omit, r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c
     # if dict, will do a parabolic curve fitting
-    r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
+    # r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
 
     normalizer:
       energies: normalizer.csv
@@ -99,7 +101,7 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters:
-      1st: { Al2Mg2': 1, Al3Mg1: -2, Al4: 1 }
+      1st: { Al2Mg2: 1, Al3Mg1: -2, Al4: 1 }
       2nd: { Al4Mg2: 1, Al5Mg1: -2, Al6: 1 }
       triple: { Al1Mg3: 1, Al2Mg2: -3, Al3Mg1: 3, Al4: -1 }
       tetra: { Mg4: 1, Al1Mg3: -4, Al2Mg2: 6, Al3Mg1: -4, Al4: 1 }

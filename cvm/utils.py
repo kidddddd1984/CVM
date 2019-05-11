@@ -189,17 +189,19 @@ def mixed_atomic_weight(formula: str, *, mean='arithmetic'):
         weights += [atomic_weight[k]] * int(v)
         num += int(v)
 
-    if mean is 'arithmetic':
+    if mean == 'arithmetic':
         return np.mean(weights), num
 
-    if mean is 'harmonic':
+    if mean == 'harmonic':
         return hmean(weights), num
 
-    if mean is 'geometric':
+    if mean == 'geometric':
         return gmean(weights), num
 
+    raise ValueError("mean can be 'arithmetic', 'harmonic', and 'geometric' but got %s" % mean)
 
-def parse_input_set(path_of_set, *, is_ry_unit=True, is_lattice_unit=True):
+
+def parse_input_set(path_of_set):
     path = Path(path_of_set).expanduser().resolve()
     if not path.is_dir() or not (path / 'input.yml').exists():
         raise RuntimeError('can not parse input set')
@@ -213,18 +215,19 @@ def parse_input_set(path_of_set, *, is_ry_unit=True, is_lattice_unit=True):
     if 'series' in inp:
         for s in inp['series']:
             ens = pd.read_csv(path / s['energies'], index_col=s['lattice'])
-            del s['lattice']
-            if is_ry_unit:
+            if 'is_ry_unit' in s:
                 ens = ens * 13.605698066
-            if is_lattice_unit:
-                ens.index = UnitConvert.lc2ad(ens.index)
             s['energies'] = ens
 
             if 'normalizer' in s:
-                ens = pd.read_csv(path / s['normalizer']['energies'])
-                if is_ry_unit:
+                ens = pd.read_csv(path / s['normalizer']['energies'], index_col=s['lattice'])
+                if 'is_ry_unit' in s:
                     ens = ens * 13.605698066
                 s['normalizer']['energies'] = ens
+
+            # remove unused
+            del s['lattice']
+            del s['is_ry_unit']
 
     return inp
 
