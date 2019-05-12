@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-from copy import deepcopy
 from collections import defaultdict
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import minimize_scalar
 
+from .normalizer import Normalizer
 from .utils import UnitConvert
 from .vibration import ClusterVibration
-from .normalizer import Normalizer
 
 
 class Sample(defaultdict):
@@ -77,24 +77,21 @@ class Sample(defaultdict):
 
             for c in energies:
                 ys = energies[c]
-                self[c] = ClusterVibration(c,
-                                           xs,
-                                           ys,
-                                           energy_shift=energy_shift,
-                                           mean=self.mean,
-                                           vibration=self.vibration)
+                self[c] = ClusterVibration(
+                    c, xs, ys, energy_shift=energy_shift, mean=self.mean, vibration=self.vibration)
                 if self._normalizer and c in self._normalizer:
                     ys = energies[c] + self._normalizer[c]
-                    self[c + '~'] = ClusterVibration(c,
-                                                     xs,
-                                                     ys,
-                                                     energy_shift=energy_shift,
-                                                     mean=self.mean,
-                                                     vibration=self.vibration)
+                    self[c + '~'] = ClusterVibration(
+                        c,
+                        xs,
+                        ys,
+                        energy_shift=energy_shift,
+                        mean=self.mean,
+                        vibration=self.vibration)
 
         else:
-            raise TypeError('energies must be <pd.DataFrame> but got %s' %
-                            energies.__class__.__name__)
+            raise TypeError(
+                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
 
     def set_temperature(self, temp):
         l = len(temp)  # get length of 'temp'
@@ -136,12 +133,13 @@ class Sample(defaultdict):
             for k, v in self._normalizer.items():
                 if k in self._ens:
                     ys = (self._ens[k] + v)
-                    self[k + '~'] = ClusterVibration(k,
-                                                     xs,
-                                                     ys,
-                                                     energy_shift=energy_shift,
-                                                     mean=self.mean,
-                                                     vibration=self.vibration)
+                    self[k + '~'] = ClusterVibration(
+                        k,
+                        xs,
+                        ys,
+                        energy_shift=energy_shift,
+                        mean=self.mean,
+                        vibration=self.vibration)
 
     def ie(self, T, r=None):
         """Get interaction energies at concentration c.

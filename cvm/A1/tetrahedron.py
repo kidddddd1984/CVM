@@ -57,7 +57,7 @@ class Tetrahedron(BaseCVM):
         self.mu[0] = (self.en[0, 0, 0, 0] - self.en[1, 1, 1, 1])
         self.mu[1] = -self.mu[0]
 
-    def reset(self):
+    def reset(self, **kwargs):
         """
         initialize
         """
@@ -77,8 +77,8 @@ class Tetrahedron(BaseCVM):
         Y = y_ij * y_ik * y_il * y_jk * y_jl * y_kl
         """
         # exp
-        exp = np.exp(-self.beta * self.en[i, j, k, l] + (self.beta / 8) *
-                     (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]))
+        exp = np.exp(-self.beta * self.en[i, j, k, l] +
+                     (self.beta / 8) * (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]))
 
         # X
         X = self.x_[i] * self.x_[j] * self.x_[k] * self.x_[l]
@@ -89,7 +89,7 @@ class Tetrahedron(BaseCVM):
 
         return exp * np.power(X, -5 / 8) * np.power(Y, 1 / 2)
 
-    def process(self):
+    def process(self, **kwargs):
         # counts
         self.count += 1
 

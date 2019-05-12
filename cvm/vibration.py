@@ -3,11 +3,11 @@ from collections import Iterable
 import numpy as np
 import pandas as pd
 from scipy.integrate import quad
-from .utils import mixed_atomic_weight
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import curve_fit, minimize_scalar
 
 from .utils import UnitConvert as uc
+from .utils import mixed_atomic_weight
 
 
 class ClusterVibration(object):
@@ -54,16 +54,18 @@ class ClusterVibration(object):
         self._paras = self._fit_paras()
 
         # calculate equilibrium constant
-        poly_min = minimize_scalar(lambda _r: self.morse_potential(_r) + self._shift,
-                                   bounds=(self._xs[0], self._xs[-1]),
-                                   method='bounded')
+        poly_min = minimize_scalar(
+            lambda _r: self.morse_potential(_r) + self._shift,
+            bounds=(self._xs[0], self._xs[-1]),
+            method='bounded')
         self._lattic_cons = poly_min.x
         self._ground_en = poly_min.fun
 
     def _get_shift(self):
-        poly_min = minimize_scalar(UnivariateSpline(self._xs, self._ys, k=4),
-                                   bounds=(self._xs[0], self._xs[-1]),
-                                   method='bounded')
+        poly_min = minimize_scalar(
+            UnivariateSpline(self._xs, self._ys, k=4),
+            bounds=(self._xs[0], self._xs[-1]),
+            method='bounded')
 
         return poly_min.fun
 
@@ -159,9 +161,8 @@ class ClusterVibration(object):
                 raise ValueError("min_x can only be 'ws' or 'lattice' but got %s" % min_x)
             return self._ground_en
 
-        poly_min = minimize_scalar(lambda _r: self(T, _r),
-                                   bounds=(self._xs[0], self._xs[-1]),
-                                   method='bounded')
+        poly_min = minimize_scalar(
+            lambda _r: self(T, _r), bounds=(self._xs[0], self._xs[-1]), method='bounded')
 
         if min_x:
             if min_x == 'ws':

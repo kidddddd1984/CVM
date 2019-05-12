@@ -4,11 +4,9 @@
 import datetime as dt
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from copy import deepcopy
 
-import pandas as pd
 import numpy as np
-from pathlib import Path
+
 from .sample import Sample
 from .utils import parse_input_set
 
@@ -54,7 +52,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
         meta['timestamp'] = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.meta = meta
 
-        self.expt = experiment
+        self.experiment = experiment
 
         ##################
         # init series
@@ -73,15 +71,13 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
     @classmethod
     def from_samples(cls, meta: dict, *samples, experiment=None, verbose=True):
         ret = cls(meta, experiment=experiment, verbose=verbose)
-
         for s in samples:
             ret.add_sample(s)
-
         return ret
 
     @classmethod
-    def from_input_set(cls, path_of_set, *, is_ry_unit=True, is_lattice_unit=True):
-        inp = parse_input_set(path_of_set, is_ry_unit=is_ry_unit, is_lattice_unit=is_lattice_unit)
+    def from_input_set(cls, path_of_set):
+        inp = parse_input_set(path_of_set)
         return cls(**inp)
 
     def __call__(self, *, reset_paras={}, update_en_paras={}, process_paras={}):

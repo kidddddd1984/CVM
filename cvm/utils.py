@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-import datetime as dt
+import collections
 import json
-import os
-import re as regex
-import sys
+import re
 import tempfile
 from pathlib import Path
-from ruamel.yaml import YAML
-import pandas as pd
+
 import numpy as np
-import collections
-import re
-
+import pandas as pd
+from ruamel.yaml import YAML
 from scipy.stats.mstats import gmean, hmean
-
-import ruamel.yaml
 
 
 class UnitConvert:
@@ -48,7 +42,7 @@ class UnitConvert:
 
 def get_inp(path):
     # remove comment in json
-    pattern = regex.compile(r"(/\*)+.+?(\*/)", regex.S)
+    pattern = re.compile(r"(/\*)+.+?(\*/)", re.S)
     path = Path(path).expanduser().resolve()
     with open(str(path)) as f:
         _content = f.read()
@@ -211,6 +205,9 @@ def parse_input_set(path_of_set):
 
     if 'meta' not in inp:
         raise RuntimeError('can not find an entry named meta')
+
+    if 'experiment' in inp:
+        inp['experiment'] = pd.DataFrame(inp['experiment'])
 
     if 'series' in inp:
         for s in inp['series']:

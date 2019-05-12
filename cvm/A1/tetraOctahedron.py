@@ -17,6 +17,8 @@ class TetraOctahedron(BaseCVM):
         self.x_ = np.zeros((2), np.float64)
         self.y_ = np.zeros((2, 2), np.float64)
         self.z_ = np.zeros((2, 2, 2), np.float64)
+        self.zt_ = np.zeros((2, 2, 2), np.float64)
+        self.zo_ = np.zeros((2, 2, 2), np.float64)
         self.enT = np.zeros((2, 2, 2, 2), np.float64)
         self.enO = np.zeros((2, 2, 2, 2, 2, 2), np.float64)
         self.beta = np.float64(0.0)
@@ -79,7 +81,7 @@ class TetraOctahedron(BaseCVM):
             (self.enT[1, 1, 1, 1] + self.enO[1, 1, 1, 1, 1, 1])
         self.mu[1] = -self.mu[0]
 
-    def reset(self):
+    def reset(self, **kwargs):
 
         self.af_ = np.zeros((2, 2, 2), np.float64)
         self.main_condition = np.float64(1e-3)
@@ -104,9 +106,9 @@ class TetraOctahedron(BaseCVM):
         Z = z_ijk * z_ikl * z_ijl * z_jkl
         """
         # exp
-        exp = np.exp(-self.beta * self.enT[i, j, k, l] + (self.beta / 8) *
-                     (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]) + self.af_[i, j, k] +
-                     self.af_[i, j, l] + self.af_[i, k, l] + self.af_[j, k, l])
+        exp = np.exp(-self.beta * self.enT[i, j, k, l] +
+                     (self.beta / 8) * (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]) +
+                     self.af_[i, j, k] + self.af_[i, j, l] + self.af_[i, k, l] + self.af_[j, k, l])
 
         # X
         X = self.x_[i] * self.x_[j] * self.x_[k] * self.x_[l]
@@ -172,7 +174,7 @@ class TetraOctahedron(BaseCVM):
 
         return sub_checker
 
-    def process(self):
+    def process(self, **kwargs):
         # check sub consistant
         sub_checker = self._eta_TO()
         while sub_checker > self.sub_condition:
