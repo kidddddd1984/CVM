@@ -1,0 +1,107 @@
+# meta information
+# these information only for human reading will never be used for calculation
+# the followings is an example
+meta:
+  host: Al
+  impurity: Mg
+  prefix: ''
+  suffix: vib_TO
+  description: AlMg solubility limit calculation with tetrahedron approximation
+  structure: A1
+
+# experiment data
+# This is an optional block
+# These data will only be used for plotting
+experiment:
+  temperature:
+    [
+      715.15,
+      706.15,
+      696.15,
+      682.95,
+      672.15,
+      659.15,
+      642.65,
+      628.15,
+      611.65,
+      591.65,
+      572.15,
+      551.15,
+      523.15,
+      497.15,
+      461.15,
+      414.15,
+      372.15,
+    ]
+  concentration: [0.17, 0.16, 0.15, 0.14, 0.13, 0.12, 0.11, 0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01]
+
+# series is a list contains sets of raw data and parameters for CVM calculations
+series:
+  - energies: cluster.csv # raw energies
+    label: $T_\mathrm{FD}=800$K
+    temperature: [500, 1450, 30]
+    is_ry_unit: true # set true to tell cvm to convert energies to eV unit.
+
+    skip: false # optional, by default true
+    x_1: 0.01 # optional, by default x_1 = 0.001
+    condition: 1e-07 # optional, by default condition = 1e-07
+    host: host # optional, by default host = host
+    lattice: lattice # optional, by default lattice = lattice
+    mean: 'arithmetic' # optional, by default 'arithmetic'. set how to mix atom weights, can be 'arithmetic', 'harmonic', and 'geometric'
+
+    # set how to estimate r_0 by the given T and c
+    # if omit, r_0 will be calculated from each phase respectively.
+    # if constant, will ignore T and c
+    # if dict, will do a parabolic curve fitting
+    r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
+
+    normalizer:
+      energies: normalizer.csv
+      targets:
+        Al2Mg2:
+          steps: [[1, 11, 2]]
+          ratios: [
+              12,
+              6,
+              24,
+              12,
+              24,
+              8,
+              48,
+              6,
+              12, # 9th-a
+              24, # 9th-b
+              4,
+              24,
+              24,
+              48, # 13th-a
+              24, # 13th-b
+              48,
+              12,
+              24, # 16th-a
+              24, # 16th-b
+              24, # 17th-a
+              6, # 17th-b
+              48, # 18th-a
+              24, # 18th-b
+              24,
+              48, # 20th
+            ]
+      clusters: # set how to calculate interaction energy for each one
+        - { 1_II: 1, 1_IH: -2, 1_HH: 1 }
+        - { 2_II: 1, 2_IH: -2, 2_HH: 1 }
+        - { 3_II: 1, 3_IH: -2, 3_HH: 1 }
+        - { 4_II: 1, 4_IH: -2, 4_HH: 1 }
+        - { 5_II: 1, 5_IH: -2, 5_HH: 1 }
+        - { 6_II: 1, 6_IH: -2, 6_HH: 1 }
+        - { 7_II: 1, 7_IH: -2, 7_HH: 1 }
+        - { 8_II: 1, 8_IH: -2, 8_HH: 1 }
+        - { 9_II: 1, 9_IH: -2, 9_HH: 1 }
+        - { 10_II: 1, 10_IH: -2, 10_HH: 1 }
+        - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
+
+    clusters:
+      1st: { Al2Mg2: 1, Al3Mg1: -2, Al4: 1 }
+      2nd: { Al4Mg2: 1, Al5Mg1: -2, Al6: 1 }
+      triple: { Al1Mg3: 1, Al2Mg2: -3, Al3Mg1: 3, Al4: -1 }
+      tetra: { Mg4: 1, Al1Mg3: -4, Al2Mg2: 6, Al3Mg1: -4, Al4: 1 }
