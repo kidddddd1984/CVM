@@ -14,6 +14,8 @@ from .normalizer import Normalizer
 from .utils import UnitConvert, parse_formula, mixed_atomic_weight, logspace
 from .vibration import ClusterVibration
 
+__all__ = ['Sample']
+
 
 class Sample(defaultdict):
     """
@@ -25,7 +27,6 @@ class Sample(defaultdict):
                  host: str,
                  impurity: str,
                  *,
-                 tag: str = None,
                  temperature: list = None,
                  energies: pd.DataFrame = None,
                  clusters: dict = None,
@@ -46,9 +47,6 @@ class Sample(defaultdict):
             The column name of host energies in ``energies``.
         host : str, optional
             The column name of impurity energies in ``energies``.
-        tag : str, optional
-            An alias of the label for human-friendly using.
-            By default ``None``.
         temperature : list, optional
             Temperature steps follow the format [start, stop, # of steps].
             By default ``None``.
@@ -87,7 +85,6 @@ class Sample(defaultdict):
         """
         super().__init__()
         self.label = label
-        self.tag = f'tag_{tag}'
         self.mean = mean
         self.vibration = vibration
         self.condition = condition
@@ -128,12 +125,14 @@ class Sample(defaultdict):
             xs = UnitConvert.lc2ad(energies.index.values)
 
             # get minimum from a polynomial
-            poly_min = minimize_scalar(
-                UnivariateSpline(xs, host, k=4), bounds=(xs[0], xs[-1]), method='bounded')
+            poly_min = minimize_scalar(UnivariateSpline(xs, host, k=4),
+                                       bounds=(xs[0], xs[-1]),
+                                       method='bounded')
             self._en_min[self.host] = poly_min.fun
 
-            poly_min = minimize_scalar(
-                UnivariateSpline(xs, impurity, k=4), bounds=(xs[0], xs[-1]), method='bounded')
+            poly_min = minimize_scalar(UnivariateSpline(xs, impurity, k=4),
+                                       bounds=(xs[0], xs[-1]),
+                                       method='bounded')
             self._en_min[self.impurity] = poly_min.fun
 
             for c in energies:
@@ -147,19 +146,29 @@ class Sample(defaultdict):
                     ys -= self._en_min[k] * v
 
                 self[c] = ClusterVibration(
-                    c, xs, host * num + ys, mass, num, vibration=self.vibration)
+                    label=c,
+                    xs=xs,
+                    ys=host * num + ys,
+                    mass=mass,
+                    num=num,
+                )
                 setattr(self, c, self[c])
 
                 if self._normalizer and c in self._normalizer:
                     ys += self._normalizer[c]
                     c = f'{c}_'
                     self[c] = ClusterVibration(
-                        c, xs, host * num + ys, mass, num, vibration=self.vibration)
+                        label=c,
+                        xs=xs,
+                        ys=host * num + ys,
+                        mass=mass,
+                        num=num,
+                    )
                     setattr(self, c, self[c])
 
         else:
-            raise TypeError(
-                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
+            raise TypeError('energies must be <pd.DataFrame> but got %s' %
+                            energies.__class__.__name__)
 
     def set_temperature(self, temp):
         if isinstance(temp, dict):
@@ -186,6 +195,10 @@ class Sample(defaultdict):
     @property
     def normalizer(self):
         return self._normalizer
+
+    @property
+    def temperatures(self):
+        return self._temp
 
     def set_normalizer(self, val):
 
@@ -214,12 +227,18 @@ class Sample(defaultdict):
 
                     ys += host * num
                     c = f'{c}_'
-                    self[c] = ClusterVibration(c, xs, ys, mass, num, vibration=self.vibration)
+                    self[c] = ClusterVibration(
+                        label=c,
+                        xs=xs,
+                        ys=ys,
+                        mass=mass,
+                        num=num,
+                    )
                     setattr(self, c, self[c])
 
     def __call__(self,
-                 T: float,
                  *,
+                 T: float = None,
                  r: float = None,
                  convert_r: bool = False,
                  vibration: bool = None,
@@ -236,7 +255,7 @@ class Sample(defaultdict):
         vibration: bool
             Specific whether or not to import the thermal vibration effect.
         convert_r: bool, optional
-            If ``True``, convert parameter <r> to atomic distance.
+            If parameter ``r`` is given in lattice constance, must set this flag to ``True`` to execute an auto-unit-conversion.
         energy_patch: Callable[[float, float], namedtuple], optional
             A patch that will be used to correct the returns of interaction energy.
             By default ``None``.
@@ -255,10 +274,17 @@ class Sample(defaultdict):
         if vibration is None:
             vibration = self.vibration
 
+        if T is None:
+            vibration = False
+
         def _int(cluster, r_):
             ret_ = 0
             for k, v in cluster.items():
-                ret_ += self[k](T, r=r_, vibration=vibration) * v
+                if vibration:
+                    ret_ += self[k](T=T, r=r_) * v
+                else:
+                    ret_ += self[k](r=r_) * v
+
             return ret_
 
         ret = {}
@@ -298,6 +324,7 @@ class Sample(defaultdict):
             returns corresponding atomic distance r.
         """
         del kwargs
+
         if vibration is None:
             vibration = self.vibration
 
@@ -306,7 +333,10 @@ class Sample(defaultdict):
             c_mins = []
 
             for k_, v in self._r_0.items():
-                _, x_min = self[k_](t, min_x='ws', vibration=vibration)
+                if vibration:
+                    _, x_min = self[k_](T=t, min_x='ws')
+                else:
+                    _, x_min = self[k_](min_x='ws')
                 x_mins.append(x_min)
                 c_mins.append(v)
 
@@ -323,15 +353,12 @@ class Sample(defaultdict):
             if isinstance(self._r_0, dict):
                 yield t, r_0_func(t)
             else:
-                yield t, lambda _: self._r_0
+                yield t, lambda _: UnitConvert.lc2ad(self._r_0)
 
     def __repr__(self):
         s1 = '  | \n  |-'
         s2 = '  | '
-        if self.tag is not None:
-            header = [f'{self.tag}-<{self.label}>-<skip: {self.skip}>:']
-        else:
-            header = [f'{self.label}-<{self.skip}>:']
+        header = [f'{self.label}--<skip: {self.skip}>:']
 
         return f'\n{s1}'.join(header + [f'\n{s2}'.join(str(self.normalizer).split('\n'))] +
                               [f'\n{s2}'.join(str(v).split('\n')) for v in self.values()])

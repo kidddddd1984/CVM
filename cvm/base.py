@@ -9,10 +9,14 @@ from collections import defaultdict, namedtuple, OrderedDict
 from typing import List
 
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+import sys
 
-from .results import Results
 from .sample import Sample
 from .utils import parse_input_set
+
+__all__ = ['BaseCVM']
 
 
 class BaseCVM(defaultdict, metaclass=ABCMeta):
@@ -58,7 +62,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
         self.count = 0
         self.checker = np.float64(1.0)
         self.beta = None
-        self._results = Results()
+        self._results: list = []
 
         if not isinstance(meta, dict):
             raise TypeError('meta information must be a dict')
@@ -77,14 +81,16 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
             self.add_sample(tmp)
 
     @property
-    def results(self) -> Results:
+    def results(self) -> pd.DataFrame:
         """Get calculated results.
         
         Returns
         -------
-        results: Results
+        results
         """
-        return self._results
+        if not self._results:
+            return None
+        return pd.concat(self._results).set_index('label')
 
     def add_sample(self, sample: Sample):
         """Add sample data
@@ -99,8 +105,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
             raise TypeError('sample must be a Sample instance')
         self[sample.label] = sample
 
-        if sample.tag is not None:
-            setattr(self, sample.tag, self[sample.label])
+        setattr(self, f'tag_{sample.label}', self[sample.label])
 
     @classmethod
     def from_samples(cls, meta: dict, *samples: Sample, experiment: dict = None):
@@ -144,15 +149,15 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
         inp = parse_input_set(path_of_set)
         return cls(**inp)
 
-    def __call__(self,
-                 *labels: str,
-                 verbose: bool = False,
-                 sample_paras: dict = {},
-                 reset_paras: dict = {},
-                 update_en_paras: dict = {},
-                 process_paras: dict = {}):
+    def run(self,
+            *labels: str,
+            verbose: bool = False,
+            sample_paras: dict = {},
+            reset_paras: dict = {},
+            update_en_paras: dict = {},
+            process_paras: dict = {}):
         """
-        Run the calculation.
+        Run CVM calculation.
         
         Parameters
         ----------
@@ -162,6 +167,48 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
             Set to ``True`` to show extra information when running calculations, by default False
         sample_ite_paras : dict, optional
             The parameters will be passed to ``sample.ite`` and ``sample.__call__`` method, by default empty.        
+        reset_paras : dict, optional
+            The parameters will be passed to ``self.reset`` method, by default empty.
+        update_en_paras : dict, optional
+            The parameters will be passed to ``self.update_energy`` method, by default empty.
+        process_paras : dict, optional
+            The parameters will be passed to ``self.process`` method, by default empty.
+        """
+
+        if len(labels) == 0:
+            labels = self.keys()
+
+        for l in labels:
+            with tqdm(total=len(self[l].temperatures), desc=l) as pbar:
+                for _ in self(l,
+                              verbose=verbose,
+                              sample_paras=sample_paras,
+                              reset_paras=reset_paras,
+                              update_en_paras=update_en_paras,
+                              process_paras=process_paras):
+                    pbar.update()
+
+    def __call__(self,
+                 *labels: str,
+                 verbose: bool = False,
+                 early_stopping: bool = True,
+                 sample_paras: dict = {},
+                 reset_paras: dict = {},
+                 update_en_paras: dict = {},
+                 process_paras: dict = {}):
+        """
+        Run CVM calculation as generator.
+        Will yield calculation details on each step.
+
+        Parameters
+        ----------
+        labels: str
+            If not ``None``, only execute listed series samples.
+        verbose : bool, optional
+            Set to ``True`` to show extra information when running calculations, by default False
+        sample_ite_paras : dict, optional
+            The parameters will be passed to ``sample.ite`` and ``sample.__call__`` method,
+            by default empty.
         reset_paras : dict, optional
             The parameters will be passed to ``self.reset`` method, by default empty.
         update_en_paras : dict, optional
@@ -193,38 +240,39 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
                 self.checker = np.float64(1.0)
                 self.reset(**reset_paras)
                 while self.checker > sample.condition:
-                    e_int = sample(T, r=r_0(self.x_[1]), **sample_paras)
+                    e_int = sample(T=T, r=r_0(self.x_[1]), **sample_paras)
                     self.update_energy(e_int, **update_en_paras)
                     self.process(**process_paras)
 
                     # add result
                     tmp.append(
-                        OrderedDict(
-                            temperature=T,
-                            concentration=self.x_[1],
-                            num_of_ite=self.count,
-                            **e_int._asdict()))
+                        OrderedDict(label=label,
+                                    temperature=T,
+                                    concentration=self.x_[1],
+                                    num_of_ite=self.count,
+                                    **e_int._asdict()))
 
                     if verbose:
-                        yield ret(
-                            label=label,
-                            temperature=T,
-                            concentration=self.x_[1],
-                            num_of_ite=self.count,
-                            int_energy=e_int)
+                        yield ret(label=label,
+                                  temperature=T,
+                                  concentration=self.x_[1],
+                                  num_of_ite=self.count,
+                                  int_energy=e_int)
 
                 if not verbose:
-                    yield ret(
-                        label=label,
-                        temperature=T,
-                        concentration=self.x_[1],
-                        num_of_ite=self.count,
-                        int_energy=e_int)
+                    yield ret(label=label,
+                              temperature=T,
+                              concentration=self.x_[1],
+                              num_of_ite=self.count,
+                              int_energy=e_int)
 
-            if sample.tag is not None:
-                self._results.add_result(label, tmp, tag=sample.tag)
-            else:
-                self._results.add_result(label, tmp)
+                if self.x_[1] >= 0.45 and early_stopping:
+                    sys.stderr.write(
+                        '...Early stopping applied because the impurity concentration is greater than 0.5.'
+                        f'Current temperature is: {T}, concentration is: {self.x_[1]}')
+                    return
+
+                self._results.append(pd.DataFrame(tmp))
 
     def __repr__(self):
         s1 = '  | \n  |-'

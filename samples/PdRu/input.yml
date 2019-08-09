@@ -12,12 +12,11 @@ experiment:
 # series is a list contains sets of raw data and parameters for CVM calculations
 series:
   - energies: 800K_cluster.csv # raw energies
-    label: $T_\mathrm{FD}=800$K
+    label: 800k
     temperature: { start: 400, stop: 1290, steps: 50, log_scale: True }
     host: Pd # The column name of host energies calculated from band calculation.
     impurity: Ru # The column name of impurity energies calculated from band calculation.
 
-    tag: 800k # optional, by default None. Alias of the `label` to give a human-friendly spelling.
     is_ry_unit: true # optional, by default true. Set to true to execute an automatic conversion from Ry to eV.
     skip: false # optional, by default false. Set to true to skip this series instance.
     x_1: 0.01 # optional, by default x_1 = 0.001. The initialization concentration of impurity.
@@ -84,9 +83,10 @@ series:
       tetra: { Ru4: 1, Pd1Ru3: -4, Pd2Ru2: 6, Pd3Ru1: -4, Pd4: 1 }
 
   - energies: 1000K_cluster.csv # raw energies
-    label: $T_\mathrm{FD}=1000$K
+    label: 1000k
     temperature: [400, 1550, 50]
-    tag: 1000k
+    host: Pd
+    impurity: Ru
 
     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
 
@@ -98,9 +98,10 @@ series:
       <<: *Cluster
 
   - energies: 1200K_cluster.csv # raw energies
-    label: $T_\mathrm{FD}=1200$K
+    label: 1200k
     temperature: [400, 1700, 50]
-    tag: 1200k
+    host: Pd
+    impurity: Ru
 
     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
 
@@ -112,9 +113,10 @@ series:
       <<: *Cluster
 
   - energies: 1400K_cluster.csv # raw energies
-    label: $T_\mathrm{FD}=1400$K
+    label: 1400k
     temperature: [500, 1700, 50]
-    tag: 1400k
+    host: Pd
+    impurity: Ru
 
     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
 
@@ -126,9 +128,10 @@ series:
       <<: *Cluster
 
   - energies: 1600K_cluster.csv # raw energies
-    label: $T_\mathrm{FD}=1600$K
+    label: 1600k
     temperature: [500, 1870, 50]
-    tag: 1600k
+    host: Pd
+    impurity: Ru
 
     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
 

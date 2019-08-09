@@ -15,21 +15,18 @@ series:
   - energies: cluster.csv
 
     # The label of this sample. A label can be used to access series from the CVM instance.
-    label: $T_\mathrm{FD}=800$K
+    label: 800k
 
     # Temperature steps.
     # If given as a dictionary, it should follow the format { start: [float], stop: [float], steps: [int], log_scale: [bool, optional] }.
     # If given as a list, the calculator will iterate all temperatures in it.
-    temperature: { start: 400, stop: 1000, steps: 30, log_scale: True }
+    temperature: { start: 400, stop: 1000, steps: 30, log_scale: false }
 
     # The column name of host energies calculated from band calculation.
     host: Pd
 
     # The column name of impurity energies calculated from band calculation.
     impurity: Rh
-
-    # optional, by default None. Alias of the `label` to give a human-friendly spelling.
-    tag: 800k
 
     # optional, by default true. Set to true to execute an automatic conversion from Ry to eV.
     is_ry_unit: true
@@ -38,7 +35,7 @@ series:
     skip: false
 
     # optional, by default x_1 = 0.001. The initialization concentration of impurity.
-    x_1: 0.01
+    x_1: 0.001
 
     # optional, by default condition = 1e-07. Convergence condition.
     condition: 1e-07
@@ -51,13 +48,14 @@ series:
     mean: 'arithmetic'
 
     # optional., by default true. Specific whether or not to import the thermal vibration effect.
-    vibration: true
+    vibration: false
 
     # set how to estimate r_0 from the given T and c.
     # if omit, r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
     r_0: { Rh4: 1.0, Pd1Rh3: 0.75, Pd2Rh2: 0.5, Pd3Rh1: 0.25, Pd4: 0.0 }
+#     r_0: 7.5
 
     normalizer:
       energies: normalizer.csv
@@ -105,7 +103,7 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters: # Set how to calculate interaction energy.
-      pair1: { Pd2Rh2_: 1, Pd3Rh1: -2, Pd4: 1 }
+      pair1: { Pd2Rh2: 1, Pd3Rh1: -2, Pd4: 1 }
       pair2: { Pd4Rh2: 1, Pd5Rh1: -2, Pd6: 1 }
       triple: { Pd1Rh3: 1, Pd2Rh2: -3, Pd3Rh1: 3, Pd4: -1 }
       tetra: { Rh4: 1, Pd1Rh3: -4, Pd2Rh2: 6, Pd3Rh1: -4, Pd4: 1 }

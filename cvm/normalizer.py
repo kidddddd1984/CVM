@@ -8,14 +8,16 @@ from copy import deepcopy
 
 from collections import defaultdict
 
+__all__ = ['Normalizer']
+
 
 class Normalizer(defaultdict):
 
     def __init__(self, energies, clusters, targets):
         super().__init__()
         if not isinstance(energies, pd.DataFrame):
-            raise TypeError(
-                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
+            raise TypeError('energies must be <pd.DataFrame> but got %s' %
+                            energies.__class__.__name__)
 
         _ints = []
         for f in clusters:

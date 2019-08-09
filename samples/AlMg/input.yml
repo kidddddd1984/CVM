@@ -38,12 +38,11 @@ experiment:
 # series is a list contains sets of raw data and parameters for CVM calculations
 series:
   - energies: cluster.csv # raw energies
-    label: $T_\mathrm{FD}=800$K
-    temperature: { start: 400, stop: 1200, steps: 30, log_scale: True }
+    label: 800k
+    temperature: { start: 300, stop: 800, steps: 30, log_scale: false }
     host: Al # The column name of host energies calculated from band calculation.
     impurity: Mg # The column name of impurity energies calculated from band calculation.
 
-    tag: 800k # optional, by default None. Alias of the `label` to give a human-friendly spelling.
     is_ry_unit: true # optional, by default true. Set to true to execute an automatic conversion from Ry to eV.
     skip: false # optional, by default false. Set to true to skip this series instance.
     x_1: 1e-3 # optional, by default x_1 = 0.001. The initialization concentration of impurity.
