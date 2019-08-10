@@ -54,8 +54,8 @@ series:
     # if omit, r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
-    r_0: { Rh4: 1.0, Pd1Rh3: 0.75, Pd2Rh2: 0.5, Pd3Rh1: 0.25, Pd4: 0.0 }
-#     r_0: 7.5
+#     r_0: { Rh4: 1.0, Pd1Rh3: 0.75, Pd2Rh2: 0.5, Pd3Rh1: 0.25, Pd4: 0.0 }
+    r_0: 7.65
 
     normalizer:
       energies: normalizer.csv

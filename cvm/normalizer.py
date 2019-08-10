@@ -13,11 +13,11 @@ __all__ = ['Normalizer']
 
 class Normalizer(defaultdict):
 
-    def __init__(self, energies, clusters, targets):
+    def __init__(self, energies: pd.DataFrame, clusters, targets):
         super().__init__()
         if not isinstance(energies, pd.DataFrame):
-            raise TypeError('energies must be <pd.DataFrame> but got %s' %
-                            energies.__class__.__name__)
+            raise TypeError(
+                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
 
         _ints = []
         for f in clusters:
@@ -30,6 +30,10 @@ class Normalizer(defaultdict):
         self.targets = deepcopy(targets)
         for k, v in self.targets.items():
             self[k] = self._energy_diff(**v)
+
+    @property
+    def interaction_energies(self):
+        return self._ints
 
     def _energy_diff(self, steps, ratios):
         """

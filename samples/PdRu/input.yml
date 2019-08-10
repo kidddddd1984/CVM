@@ -13,7 +13,7 @@ experiment:
 series:
   - energies: 800K_cluster.csv # raw energies
     label: 800k
-    temperature: { start: 400, stop: 1290, steps: 50, log_scale: True }
+    temperature: { start: 400, stop: 1290, steps: 50, log_scale: false }
     host: Pd # The column name of host energies calculated from band calculation.
     impurity: Ru # The column name of impurity energies calculated from band calculation.
 
@@ -23,19 +23,20 @@ series:
     condition: 1e-07 # optional, by default condition = 1e-07. Convergence condition.
     lattice: lattice # optional, by default lattice = 'lattice'. The column name of lattice parameters.
     mean: 'arithmetic' # optional, by default 'arithmetic'. Specific how to mix atom weights, can be 'arithmetic', 'harmonic', and 'geometric'.
-    vibration: true # optional., by default true. Specific whether or not to import the thermal vibration effect.
+    vibration: false # optional., by default true. Specific whether or not to import the thermal vibration effect.
 
     # set how to estimate r_0 by the given T and c.
     # if omit, r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
-    r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    r_0: 7.65
 
     normalizer: &Normalizer
       energies: 800K_normalizer.csv
       targets:
         Pd2Ru2:
-          steps: [[1, 11, 2]]
+          steps: [[1, 8, 2]]
           ratios: [
               12,
               6,
@@ -77,18 +78,20 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters: &Cluster
-      pair1: { Pd2Ru2: 1, Pd3Ru1: -2, Pd4: 1 }
+      pair1: { Pd2Ru2_: 1, Pd3Ru1: -2, Pd4: 1 }
       pair2: { Pd4Ru2: 1, Pd5Ru1: -2, Pd6: 1 }
       triple: { Pd1Ru3: 1, Pd2Ru2: -3, Pd3Ru1: 3, Pd4: -1 }
       tetra: { Ru4: 1, Pd1Ru3: -4, Pd2Ru2: 6, Pd3Ru1: -4, Pd4: 1 }
 
   - energies: 1000K_cluster.csv # raw energies
     label: 1000k
-    temperature: [400, 1550, 50]
+    temperature: { start: 400, stop: 1290, steps: 50, log_scale: true }
     host: Pd
     impurity: Ru
 
-    r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    r_0: 7.65
+    vibration: false
 
     normalizer:
       <<: *Normalizer
@@ -99,12 +102,14 @@ series:
 
   - energies: 1200K_cluster.csv # raw energies
     label: 1200k
-    temperature: [400, 1700, 50]
+    temperature: { start: 400, stop: 1490, steps: 50, log_scale: true }
     host: Pd
     impurity: Ru
 
-    r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
-
+#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    r_0: 7.65
+    vibration: false
+    
     normalizer:
       <<: *Normalizer
       energies: 1200K_normalizer.csv
@@ -114,12 +119,14 @@ series:
 
   - energies: 1400K_cluster.csv # raw energies
     label: 1400k
-    temperature: [500, 1700, 50]
+    temperature: { start: 400, stop: 1690, steps: 50, log_scale: true }
     host: Pd
     impurity: Ru
 
-    r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
-
+#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    r_0: 7.65
+    vibration: false
+    
     normalizer:
       <<: *Normalizer
       energies: 1400K_normalizer.csv
@@ -129,12 +136,14 @@ series:
 
   - energies: 1600K_cluster.csv # raw energies
     label: 1600k
-    temperature: [500, 1870, 50]
+    temperature: { start: 400, stop: 1890, steps: 50, log_scale: true }
     host: Pd
     impurity: Ru
 
-    r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
-
+#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    r_0: 7.65
+    vibration: false
+    
     normalizer:
       <<: *Normalizer
       energies: 1600K_normalizer.csv
