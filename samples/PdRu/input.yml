@@ -78,7 +78,7 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters: &Cluster
-      pair1: { Pd2Ru2_: 1, Pd3Ru1: -2, Pd4: 1 }
+      pair1: { Pd2Ru2: 1, Pd3Ru1: -2, Pd4: 1 }
       pair2: { Pd4Ru2: 1, Pd5Ru1: -2, Pd6: 1 }
       triple: { Pd1Ru3: 1, Pd2Ru2: -3, Pd3Ru1: 3, Pd4: -1 }
       tetra: { Ru4: 1, Pd1Ru3: -4, Pd2Ru2: 6, Pd3Ru1: -4, Pd4: 1 }
