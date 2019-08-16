@@ -4,17 +4,17 @@
 
 import datetime as dt
 import os
+import sys
 from abc import ABCMeta, abstractmethod
-from collections import defaultdict, namedtuple, OrderedDict
+from collections import OrderedDict, defaultdict, namedtuple
 from typing import List
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import sys
 
 from .sample import Sample
-from .utils import parse_input_set
+from .utils import parse_input_set, UnitConvert
 
 __all__ = ['BaseCVM']
 
@@ -90,7 +90,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
         """
         if not self._results:
             return None
-        return pd.concat(self._results).set_index('label')
+        return pd.DataFrame(self._results).set_index('label')
 
     def add_sample(self, sample: Sample):
         """Add sample data
@@ -152,6 +152,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
     def run(self,
             *labels: str,
             verbose: bool = False,
+            early_stopping: float = 0.2,
             sample_paras: dict = {},
             reset_paras: dict = {},
             update_en_paras: dict = {},
@@ -180,18 +181,20 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
 
         for l in labels:
             with tqdm(total=len(self[l].temperatures), desc=l) as pbar:
-                for _ in self(l,
-                              verbose=verbose,
-                              sample_paras=sample_paras,
-                              reset_paras=reset_paras,
-                              update_en_paras=update_en_paras,
-                              process_paras=process_paras):
+                for _ in self(
+                        l,
+                        verbose=verbose,
+                        early_stopping=early_stopping,
+                        sample_paras=sample_paras,
+                        reset_paras=reset_paras,
+                        update_en_paras=update_en_paras,
+                        process_paras=process_paras):
                     pbar.update()
 
     def __call__(self,
                  *labels: str,
                  verbose: bool = False,
-                 early_stopping: bool = True,
+                 early_stopping: float = 0.2,
                  sample_paras: dict = {},
                  reset_paras: dict = {},
                  update_en_paras: dict = {},
@@ -217,8 +220,10 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
             The parameters will be passed to ``self.process`` method, by default empty.
         """
 
-        ret = namedtuple('status', 'label, temperature, concentration, num_of_ite, int_energy')
+        ret = namedtuple(
+            'status', 'label, temperature, concentration, lattice_param, num_of_ite, int_energy')
 
+        self._results = []
         # temperature iteration
         for label, sample in self.items():
             if sample.skip:
@@ -229,7 +234,6 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
             self.x_[1] = sample.x_1
             self.x_[0] = 1 - sample.x_1
 
-            tmp = []
             for T, r_0 in sample.ite(**sample_paras):
 
                 # β = 1/kt
@@ -240,39 +244,44 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
                 self.checker = np.float64(1.0)
                 self.reset(**reset_paras)
                 while self.checker > sample.condition:
-                    e_int = sample(T=T, r=r_0(self.x_[1]), **sample_paras)
+                    r_0_ = r_0(self.x_[1])
+                    e_int = sample(T=T, r=r_0_, **sample_paras)
                     self.update_energy(e_int, **update_en_paras)
                     self.process(**process_paras)
 
+                    if early_stopping > 0 and self.x_[1] >= early_stopping:
+                        sys.stderr.write(
+                            '...Early stopping applied because the impurity concentration is greater than 0.5.'
+                            f'Current temperature is: {T}, concentration is: {self.x_[1]}')
+                        return
+
                     # add result
-                    tmp.append(
-                        OrderedDict(label=label,
-                                    temperature=T,
-                                    concentration=self.x_[1],
-                                    num_of_ite=self.count,
-                                    **e_int._asdict()))
+                    self._results.append(
+                        OrderedDict(
+                            label=label,
+                            temperature=T,
+                            concentration=self.x_[1],
+                            lattice_param=UnitConvert.ad2lc(r_0_),
+                            num_of_ite=self.count,
+                            **e_int._asdict()))
 
                     if verbose:
-                        yield ret(label=label,
-                                  temperature=T,
-                                  concentration=self.x_[1],
-                                  num_of_ite=self.count,
-                                  int_energy=e_int)
+                        yield ret(
+                            label=label,
+                            temperature=T,
+                            concentration=self.x_[1],
+                            lattice_param=UnitConvert.ad2lc(r_0_),
+                            num_of_ite=self.count,
+                            int_energy=e_int)
 
                 if not verbose:
-                    yield ret(label=label,
-                              temperature=T,
-                              concentration=self.x_[1],
-                              num_of_ite=self.count,
-                              int_energy=e_int)
-
-                if self.x_[1] >= 0.45 and early_stopping:
-                    sys.stderr.write(
-                        '...Early stopping applied because the impurity concentration is greater than 0.5.'
-                        f'Current temperature is: {T}, concentration is: {self.x_[1]}')
-                    return
-
-                self._results.append(pd.DataFrame(tmp))
+                    yield ret(
+                        label=label,
+                        temperature=T,
+                        concentration=self.x_[1],
+                        lattice_param=UnitConvert.ad2lc(r_0_),
+                        num_of_ite=self.count,
+                        int_energy=e_int)
 
     def __repr__(self):
         s1 = '  | \n  |-'

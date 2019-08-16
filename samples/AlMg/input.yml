@@ -103,7 +103,8 @@ series:
         - { 11_II: 1, 11_IH: -2, 11_HH: 1 }
 
     clusters:
-      pair1: { Al2Mg2_: 1, Al3Mg1: -2, Al4: 1 }
+      pair1: { Al2Mg2: 1, Al3Mg1: -2, Al4: 1 }
+      pair1_: { Al2Mg2_: 1, Al3Mg1: -2, Al4: 1 }
       pair2: { Al4Mg2: 1, Al5Mg1: -2, Al6: 1 }
       triple: { Al1Mg3: 1, Al2Mg2: -3, Al3Mg1: 3, Al4: -1 }
       tetra: { Mg4: 1, Al1Mg3: -4, Al2Mg2: 6, Al3Mg1: -4, Al4: 1 }

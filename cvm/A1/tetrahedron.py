@@ -28,17 +28,21 @@ class Tetrahedron(BaseCVM):
         # configuration
         ###############################################
 
+        pair1 = kwargs.get('pair1') if kwargs.get('pair1') else 'pair1'
+        triple = kwargs.get('triple') if kwargs.get('triple') else 'triple'
+        tetra = kwargs.get('tetra') if kwargs.get('tetra') else 'tetra'
+
         # pure energy of 2body 1st
         e1 = np.zeros((2, 2), np.float64)
-        e1[0, 1] = e1[1, 0] = 0.5 * (e1[0, 0] + e1[1, 1] - e_ints.pair1)
+        e1[0, 1] = e1[1, 0] = 0.5 * (e1[0, 0] + e1[1, 1] - getattr(e_ints, pair1))
 
         # 3body-1st interaction energy
         de31 = np.zeros((2, 2, 2), np.float64)
-        de31[1, 1, 1] = e_ints.triple
+        de31[1, 1, 1] = getattr(e_ints, triple)
 
         # 4body-1st interaction energy
         de41 = np.zeros((2, 2, 2, 2), np.float64)
-        de41[1, 1, 1, 1] = e_ints.tetra
+        de41[1, 1, 1, 1] = getattr(e_ints, tetra)
 
         # energy ε
         it = np.nditer(self.en, flags=['multi_index'])
@@ -77,8 +81,8 @@ class Tetrahedron(BaseCVM):
         Y = y_ij * y_ik * y_il * y_jk * y_jl * y_kl
         """
         # exp
-        exp = np.exp(-self.beta * self.en[i, j, k, l] + (self.beta / 8) *
-                     (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]))
+        exp = np.exp(-self.beta * self.en[i, j, k, l] +
+                     (self.beta / 8) * (self.mu[i] + self.mu[j] + self.mu[k] + self.mu[l]))
 
         # X
         X = self.x_[i] * self.x_[j] * self.x_[k] * self.x_[l]

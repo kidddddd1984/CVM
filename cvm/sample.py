@@ -125,14 +125,12 @@ class Sample(defaultdict):
             xs = UnitConvert.lc2ad(energies.index.values)
 
             # get minimum from a polynomial
-            poly_min = minimize_scalar(UnivariateSpline(xs, host, k=4),
-                                       bounds=(xs[0], xs[-1]),
-                                       method='bounded')
+            poly_min = minimize_scalar(
+                UnivariateSpline(xs, host, k=4), bounds=(xs[0], xs[-1]), method='bounded')
             self._en_min[self.host] = poly_min.fun
 
-            poly_min = minimize_scalar(UnivariateSpline(xs, impurity, k=4),
-                                       bounds=(xs[0], xs[-1]),
-                                       method='bounded')
+            poly_min = minimize_scalar(
+                UnivariateSpline(xs, impurity, k=4), bounds=(xs[0], xs[-1]), method='bounded')
             self._en_min[self.impurity] = poly_min.fun
 
             for c in energies:
@@ -154,8 +152,9 @@ class Sample(defaultdict):
                 )
                 setattr(self, c, self[c])
 
-                if self._normalizer and c in self._normalizer:
+                if self._normalizer is not None and c in self._normalizer:
                     ys += self._normalizer[c]
+
                     c = f'{c}_'
                     self[c] = ClusterVibration(
                         label=c,
@@ -167,8 +166,8 @@ class Sample(defaultdict):
                     setattr(self, c, self[c])
 
         else:
-            raise TypeError('energies must be <pd.DataFrame> but got %s' %
-                            energies.__class__.__name__)
+            raise TypeError(
+                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
 
     def set_temperature(self, temp):
         if isinstance(temp, dict):
@@ -225,12 +224,11 @@ class Sample(defaultdict):
                     for k_, v_ in comp.items():
                         ys -= self._en_min[k_] * v_
 
-                    ys += host * num
                     c = f'{c}_'
                     self[c] = ClusterVibration(
                         label=c,
                         xs=xs,
-                        ys=ys,
+                        ys=ys + host * num,
                         mass=mass,
                         num=num,
                     )
@@ -299,11 +297,18 @@ class Sample(defaultdict):
             patch = energy_patch(T, r)
 
             for k, v in patch.items():
-                ret[k] += v
+                if k in ret:
+                    ret[k] += v
 
         return namedtuple('interaction_energy', self._clusters.keys())(**ret)
 
-    def ite(self, *, temperature: list = None, k: int = 3, vibration: bool = None, **kwargs):
+    def ite(self,
+            *,
+            temperature: list = None,
+            k: int = 3,
+            vibration: bool = None,
+            r_0: float = None,
+            **kwargs):
         """Iterate over each temperature
 
         Parameters
@@ -328,11 +333,14 @@ class Sample(defaultdict):
         if vibration is None:
             vibration = self.vibration
 
+        if r_0 is None:
+            r_0 = self._r_0
+
         def r_0_func(t):
             x_mins = []
             c_mins = []
 
-            for k_, v in self._r_0.items():
+            for k_, v in r_0.items():
                 if vibration:
                     _, x_min = self[k_](T=t, min_x='ws')
                 else:
@@ -350,10 +358,10 @@ class Sample(defaultdict):
             temperature = self._temp
 
         for t in temperature:
-            if isinstance(self._r_0, dict):
+            if isinstance(r_0, dict):
                 yield t, r_0_func(t)
             else:
-                yield t, lambda _: UnitConvert.lc2ad(self._r_0)
+                yield t, lambda _: UnitConvert.lc2ad(r_0)
 
     def __repr__(self):
         s1 = '  | \n  |-'

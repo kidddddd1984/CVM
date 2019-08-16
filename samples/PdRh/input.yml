@@ -48,14 +48,14 @@ series:
     mean: 'arithmetic'
 
     # optional., by default true. Specific whether or not to import the thermal vibration effect.
-    vibration: false
+    vibration: true
 
     # set how to estimate r_0 from the given T and c.
     # if omit, r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
-#     r_0: { Rh4: 1.0, Pd1Rh3: 0.75, Pd2Rh2: 0.5, Pd3Rh1: 0.25, Pd4: 0.0 }
-    r_0: 7.65
+    r_0: { Rh4: 1.0, Pd1Rh3: 0.75, Pd2Rh2: 0.5, Pd3Rh1: 0.25, Pd4: 0.0 }
+#     r_0: 7.46
 
     normalizer:
       energies: normalizer.csv
@@ -104,6 +104,7 @@ series:
 
     clusters: # Set how to calculate interaction energy.
       pair1: { Pd2Rh2: 1, Pd3Rh1: -2, Pd4: 1 }
+      pair1_: { Pd2Rh2_: 1, Pd3Rh1: -2, Pd4: 1 }
       pair2: { Pd4Rh2: 1, Pd5Rh1: -2, Pd6: 1 }
       triple: { Pd1Rh3: 1, Pd2Rh2: -3, Pd3Rh1: 3, Pd4: -1 }
       tetra: { Rh4: 1, Pd1Rh3: -4, Pd2Rh2: 6, Pd3Rh1: -4, Pd4: 1 }
