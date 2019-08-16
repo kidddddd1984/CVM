@@ -261,7 +261,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
                             label=label,
                             temperature=T,
                             concentration=self.x_[1],
-                            lattice_param=UnitConvert.ad2lc(r_0_),
+                            lattice_param=UnitConvert.ad2lc(r_0_) if r_0_ is not None else r_0_,
                             num_of_ite=self.count,
                             **e_int._asdict()))
 
@@ -270,7 +270,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
                             label=label,
                             temperature=T,
                             concentration=self.x_[1],
-                            lattice_param=UnitConvert.ad2lc(r_0_),
+                            lattice_param=UnitConvert.ad2lc(r_0_) if r_0_ is not None else r_0_,
                             num_of_ite=self.count,
                             int_energy=e_int)
 
@@ -279,7 +279,7 @@ class BaseCVM(defaultdict, metaclass=ABCMeta):
                         label=label,
                         temperature=T,
                         concentration=self.x_[1],
-                        lattice_param=UnitConvert.ad2lc(r_0_),
+                        lattice_param=UnitConvert.ad2lc(r_0_) if r_0_ is not None else r_0_,
                         num_of_ite=self.count,
                         int_energy=e_int)
 

@@ -361,7 +361,7 @@ class Sample(defaultdict):
             if isinstance(r_0, dict):
                 yield t, r_0_func(t)
             else:
-                yield t, lambda _: UnitConvert.lc2ad(r_0)
+                yield t, lambda _: UnitConvert.lc2ad(r_0) if r_0 is not None else r_0
 
     def __repr__(self):
         s1 = '  | \n  |-'

@@ -55,7 +55,7 @@ series:
     # if omit, r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
-    r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
+#     r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
 
     normalizer:
       energies: normalizer.csv
