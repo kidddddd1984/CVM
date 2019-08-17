@@ -125,12 +125,14 @@ class Sample(defaultdict):
             xs = UnitConvert.lc2ad(energies.index.values)
 
             # get minimum from a polynomial
-            poly_min = minimize_scalar(
-                UnivariateSpline(xs, host, k=4), bounds=(xs[0], xs[-1]), method='bounded')
+            poly_min = minimize_scalar(UnivariateSpline(xs, host, k=4),
+                                       bounds=(xs[0], xs[-1]),
+                                       method='bounded')
             self._en_min[self.host] = poly_min.fun
 
-            poly_min = minimize_scalar(
-                UnivariateSpline(xs, impurity, k=4), bounds=(xs[0], xs[-1]), method='bounded')
+            poly_min = minimize_scalar(UnivariateSpline(xs, impurity, k=4),
+                                       bounds=(xs[0], xs[-1]),
+                                       method='bounded')
             self._en_min[self.impurity] = poly_min.fun
 
             for c in energies:
@@ -166,8 +168,8 @@ class Sample(defaultdict):
                     setattr(self, c, self[c])
 
         else:
-            raise TypeError(
-                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
+            raise TypeError('energies must be <pd.DataFrame> but got %s' %
+                            energies.__class__.__name__)
 
     def set_temperature(self, temp):
         if isinstance(temp, dict):
@@ -212,7 +214,6 @@ class Sample(defaultdict):
         self._normalizer = val
         if self._ens is not None:
             host = self._ens[self.host]
-            impurity = self._ens[self.impurity]
             xs = UnitConvert.lc2ad(self._ens.index.values)
 
             for c, v in self._normalizer.items():
