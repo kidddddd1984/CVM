@@ -35,7 +35,7 @@ class Sample(defaultdict):
                  skip: bool = False,
                  x_1: float = 0.001,
                  condition: float = 1e-07,
-                 r_0: Union[float, dict] = None,
+                 r_0: Union[float, dict, str] = None,
                  normalizer: Union[dict, Normalizer] = None):
         """
         
@@ -72,9 +72,9 @@ class Sample(defaultdict):
         condition : float, optional
             Convergence condition.
             By default ``1e-07``.
-        r_0 : Union[float, dict, None], optional
+        r_0 : Union[float, dict, str], optional
             Set how to estimate r_0 from the given T and c.
-            If ``None``, r_0 will be calculated from each phase respectively.
+            If ``local``, r_0 will be calculated from each phase respectively.
             If constant, will ignore T and c.
             If dict, will do a parabolic curve fitting.
             By default ``None``.
@@ -125,14 +125,12 @@ class Sample(defaultdict):
             xs = UnitConvert.lc2ad(energies.index.values)
 
             # get minimum from a polynomial
-            poly_min = minimize_scalar(UnivariateSpline(xs, host, k=4),
-                                       bounds=(xs[0], xs[-1]),
-                                       method='bounded')
+            poly_min = minimize_scalar(
+                UnivariateSpline(xs, host, k=4), bounds=(xs[0], xs[-1]), method='bounded')
             self._en_min[self.host] = poly_min.fun
 
-            poly_min = minimize_scalar(UnivariateSpline(xs, impurity, k=4),
-                                       bounds=(xs[0], xs[-1]),
-                                       method='bounded')
+            poly_min = minimize_scalar(
+                UnivariateSpline(xs, impurity, k=4), bounds=(xs[0], xs[-1]), method='bounded')
             self._en_min[self.impurity] = poly_min.fun
 
             for c in energies:
@@ -168,8 +166,8 @@ class Sample(defaultdict):
                     setattr(self, c, self[c])
 
         else:
-            raise TypeError('energies must be <pd.DataFrame> but got %s' %
-                            energies.__class__.__name__)
+            raise TypeError(
+                'energies must be <pd.DataFrame> but got %s' % energies.__class__.__name__)
 
     def set_temperature(self, temp):
         if isinstance(temp, dict):
@@ -238,8 +236,7 @@ class Sample(defaultdict):
     def __call__(self,
                  *,
                  T: float = None,
-                 r: float = None,
-                 convert_r: bool = False,
+                 r: [float, dict, str, None] = None,
                  vibration: bool = None,
                  energy_patch: Callable[[float, float], namedtuple] = None,
                  **kwargs):
@@ -249,12 +246,10 @@ class Sample(defaultdict):
         ----------
         T : float
             Temperature.
-        r : float, optional
+        r : float, dict, str, or None, optional
             Atomic distance. By default ``None``.
         vibration: bool
             Specific whether or not to import the thermal vibration effect.
-        convert_r: bool, optional
-            If parameter ``r`` is given in lattice constance, must set this flag to ``True`` to execute an auto-unit-conversion.
         energy_patch: Callable[[float, float], namedtuple], optional
             A patch that will be used to correct the returns of interaction energy.
             By default ``None``.
@@ -267,15 +262,6 @@ class Sample(defaultdict):
 
         del kwargs
 
-        if convert_r:
-            r = UnitConvert.lc2ad(r)
-
-        if vibration is None:
-            vibration = self.vibration
-
-        if T is None:
-            vibration = False
-
         def _int(cluster, r_):
             ret_ = 0
             for k, v in cluster.items():
@@ -285,6 +271,15 @@ class Sample(defaultdict):
                     ret_ += self[k](r=r_) * v
 
             return ret_
+
+        if vibration is None:
+            vibration = self.vibration
+
+        if r is None:
+            r = self._r_0
+
+        if T is None:
+            vibration = False
 
         ret = {}
         for k, v in self._clusters.items():
@@ -308,7 +303,7 @@ class Sample(defaultdict):
             temperature: list = None,
             k: int = 3,
             vibration: bool = None,
-            r_0: float = None,
+            r_0: [float, dict, str, None] = None,
             **kwargs):
         """Iterate over each temperature
 
@@ -331,12 +326,6 @@ class Sample(defaultdict):
         """
         del kwargs
 
-        if vibration is None:
-            vibration = self.vibration
-
-        if r_0 is None:
-            r_0 = self._r_0
-
         def r_0_func(t):
             x_mins = []
             c_mins = []
@@ -353,6 +342,12 @@ class Sample(defaultdict):
             index = np.argsort(tmp[0])
             return UnivariateSpline(tmp[0, index], tmp[1, index], k=k)
 
+        if vibration is None:
+            vibration = self.vibration
+
+        if r_0 is None:
+            r_0 = self._r_0
+
         if temperature is not None:
             temperature = self.set_temperature(temperature)
         else:
@@ -361,8 +356,12 @@ class Sample(defaultdict):
         for t in temperature:
             if isinstance(r_0, dict):
                 yield t, r_0_func(t)
+            elif isinstance(r_0, str) and r_0 == 'local':
+                yield t, lambda _: r_0
+            elif isinstance(r_0, (float, int)):
+                yield t, lambda _: UnitConvert.lc2ad(r_0)
             else:
-                yield t, lambda _: UnitConvert.lc2ad(r_0) if r_0 is not None else r_0
+                raise RuntimeError('r_0 must be type of `dict`, `float` or str `local`')
 
     def __repr__(self):
         s1 = '  | \n  |-'

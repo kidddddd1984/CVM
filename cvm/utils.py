@@ -23,26 +23,36 @@ class UnitConvert:
     # lattice constan to atomic distance
     @staticmethod
     def lc2ad(d, n=4):
+        if not isinstance(d, (float, int, list, np.ndarray, pd.Series)):
+            raise RuntimeError(f'parameter <d> must be a number but got `{d}``')
         return d * np.power((3 / (4 * n * np.pi)), 1 / 3)
 
     # atomic distance to lattice constan
     @staticmethod
     def ad2lc(d, n=4):
+        if not isinstance(d, (float, int, list, np.ndarray, pd.Series)):
+            raise RuntimeError(f'parameter <d> must be a number but got `{d}`')
         return d / np.power((3 / (4 * n * np.pi)), 1 / 3)
 
     # eV. press to Kbar
     @staticmethod
     def eV2Kbar(p):
+        if not isinstance(p, (float, int, list, np.ndarray, pd.Series)):
+            raise RuntimeError(f'parameter <p> must be a number but got `{d}`')
         return p * 2.9421912e13 * 1e-8 / 27.21138505
 
     # a.u. temperature to K
     @staticmethod
     def au2K(t):
+        if not isinstance(t (float, int, list, np.ndarray, pd.Series)):
+            raise RuntimeError(f'parameter <t> must be a number but got `{t}`')
         return t * 3.1577464e5
 
     # a.u. temperature to K
     @staticmethod
     def ry2eV(t):
+        if not isinstance(t, (float, int, list, np.ndarray, pd.Series)):
+            raise RuntimeError(f'parameter <t> must be a number but got `{t}`')
         return t * 13.605698066
 
 

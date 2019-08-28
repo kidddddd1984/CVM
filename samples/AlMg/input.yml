@@ -39,23 +39,24 @@ experiment:
 series:
   - energies: cluster.csv # raw energies
     label: 800k
-    temperature: { start: 300, stop: 800, steps: 30, log_scale: false }
+    temperature: { start: 200, stop: 2000, steps: 30, log_scale: false }
     host: Al # The column name of host energies calculated from band calculation.
     impurity: Mg # The column name of impurity energies calculated from band calculation.
 
     is_ry_unit: true # optional, by default true. Set to true to execute an automatic conversion from Ry to eV.
     skip: false # optional, by default false. Set to true to skip this series instance.
-    x_1: 1e-3 # optional, by default x_1 = 0.001. The initialization concentration of impurity.
+    x_1: 2e-3 # optional, by default x_1 = 0.001. The initialization concentration of impurity.
     condition: 1e-07 # optional, by default condition = 1e-07. Convergence condition.
     lattice: lattice # optional, by default lattice = 'lattice'. The column name of lattice parameters.
     mean: 'arithmetic' # optional, by default 'arithmetic'. Specific how to mix atom weights, can be 'arithmetic', 'harmonic', and 'geometric'.
     vibration: true # optional., by default true. Specific whether or not to import the thermal vibration effect.
 
     # set how to estimate r_0 by the given T and c.
-    # if omit, r_0 will be calculated from each phase respectively.
+    # if "local", r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
-#     r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
+    r_0: local
+    #     r_0: { Mg4: 1.0, Al1Mg3: 0.75, Al2Mg2: 0.5, Al3Mg1: 0.25, Al4: 0.0 }
 
     normalizer:
       energies: normalizer.csv

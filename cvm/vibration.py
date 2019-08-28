@@ -65,9 +65,8 @@ class ClusterVibration(object):
         self._paras = self._fit_paras()
 
         # calculate equilibrium constant
-        poly_min = minimize_scalar(self.morse_potential,
-                                   bounds=(self._xs[0], self._xs[-1]),
-                                   method='bounded')
+        poly_min = minimize_scalar(
+            self.morse_potential, bounds=(self._xs[0], self._xs[-1]), method='bounded')
         self._lattic_cons = poly_min.x
         self._ground_en = poly_min.fun
 
@@ -165,12 +164,12 @@ class ClusterVibration(object):
         return self.c1 - 2 * self.c2 * np.exp(-self.lmd * (r - self.r_0)) + \
             self.c2 * np.exp(-2 * self.lmd * (r - self.r_0))
 
-    def debye_temperature(self, r: float = None) -> float:
+    def debye_temperature(self, r: [float, str] = 'local') -> float:
         """Debye temperature function.
 
         Parameters
         ----------
-        r : float, optional
+        r : float, str, optional
             Atomic distance, by default None
 
         Returns
@@ -178,7 +177,7 @@ class ClusterVibration(object):
         float
         """
         D_0 = np.float64(41.63516) * np.power(self.r_0 * self.bulk_modulus / self.mass, 1 / 2)
-        if r is None:
+        if r == 'local':
             return D_0
         return D_0 * np.power(self.r_0 / r, 3 * self.lmd * r / 2)
 
@@ -209,7 +208,7 @@ class ClusterVibration(object):
             self,
             *,
             T: float = None,
-            r: float = None,
+            r: [float, str] = 'local',
             min_x: str = None,
     ):
         """Get free energy.
@@ -218,8 +217,8 @@ class ClusterVibration(object):
         ----------
         T : float, optional
             Temperature. If ``None``, will set parameter ``vibration`` to ``False`` automatically.
-        r : float, optional
-            Atomic distance, If ``None``, will ues the default setting which be set when instancing.
+        r : float or str, optional
+            Atomic distance, If ``local``, will ues the default setting which be set when instancing.
             by default ``None``.
         min_x: str, optional
             By default ``None``.
@@ -230,11 +229,20 @@ class ClusterVibration(object):
         """
         bzc = 8.6173303e-5
 
-        if T is None and r is not None:
+        if isinstance(T, (float, int)) and T < 0:
+            raise RuntimeError('T must a positive number')
+
+        if isinstance(r, (float, int)) and T < 0:
+            raise RuntimeError('r must a positive number or str `local`')
+
+        if isinstance(r, (str)) and r != 'local':
+            raise RuntimeError('r must a positive number or str `local`')
+
+        if T is None and r != 'local':
             return (self.morse_potential(r)) * self.num
 
         # no vibration effects
-        if T is None and r is None:
+        if T is None and r == 'local':
             if min_x:
                 if min_x == 'ws':
                     return self._ground_en * self.num, self._lattic_cons
@@ -243,17 +251,16 @@ class ClusterVibration(object):
                 raise ValueError("min_x can only be 'ws' or 'lattice' but got %s" % min_x)
             return self._ground_en * self.num
 
-        if T is not None and r is not None:
+        if T is not None and r != 'local':
             return (self.morse_potential(r) + \
                 (9 / 8) * bzc * self.debye_temperature(r) - \
                 bzc * T * (self.debye_function(T, r) - \
                 3 * np.log(1 - np.exp(-(self.debye_temperature(r) / T))))) * self.num
 
         # take count into vibration effects
-        if T is not None and r is None:
-            poly_min = minimize_scalar(lambda _r: self(T=T, r=_r),
-                                       bounds=(self._xs[0], self._xs[-1]),
-                                       method='bounded')
+        if T is not None and r == 'local':
+            poly_min = minimize_scalar(
+                lambda _r: self(T=T, r=_r), bounds=(self._xs[0], self._xs[-1]), method='bounded')
 
             if min_x:
                 if min_x == 'ws':

@@ -26,10 +26,10 @@ series:
     vibration: false # optional., by default true. Specific whether or not to import the thermal vibration effect.
 
     # set how to estimate r_0 by the given T and c.
-    # if omit, r_0 will be calculated from each phase respectively.
+    # if "local", r_0 will be calculated from each phase respectively.
     # if constant, will ignore T and c.
     # if dict, will do a parabolic curve fitting.
-#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    #     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
     r_0: 7.65
 
     normalizer: &Normalizer
@@ -89,7 +89,7 @@ series:
     host: Pd
     impurity: Ru
 
-#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    #     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
     r_0: 7.65
     vibration: false
 
@@ -106,10 +106,10 @@ series:
     host: Pd
     impurity: Ru
 
-#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    #     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
     r_0: 7.65
     vibration: false
-    
+
     normalizer:
       <<: *Normalizer
       energies: 1200K_normalizer.csv
@@ -123,10 +123,10 @@ series:
     host: Pd
     impurity: Ru
 
-#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    #     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
     r_0: 7.65
     vibration: false
-    
+
     normalizer:
       <<: *Normalizer
       energies: 1400K_normalizer.csv
@@ -140,10 +140,10 @@ series:
     host: Pd
     impurity: Ru
 
-#     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
+    #     r_0: { Ru4: 1.0, Pd1Ru3: 0.75, Pd2Ru2: 0.5, Pd3Ru1: 0.25, Pd4: 0.0 }
     r_0: 7.65
     vibration: false
-    
+
     normalizer:
       <<: *Normalizer
       energies: 1600K_normalizer.csv
